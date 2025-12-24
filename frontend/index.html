@@ -6,7 +6,7 @@
   <title>СтройПарсер v2.0 - БАЗА TD</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
@@ -200,7 +200,7 @@
         <div class="topbar__right">
           <div id="running-indicator" class="running-indicator is-hidden">
             <span class="spinner" aria-hidden="true"></span>
-            <span class="running-indicator__text">Парсинг.</span>
+            <span class="running-indicator__text">Парсинг…</span>
           </div>
           <span class="topbar__date">8 декабря 2025</span>
         </div>
@@ -326,9 +326,23 @@
 
             <div class="card card--filters">
               <div class="filters-grid filters-grid--6">
+
                 <div class="field">
-                  <label for="filter-search">Поиск</label>
-                  <input type="text" id="filter-search" placeholder="Название, ИНН." oninput="applyFilters()">
+                  <label for="filter-search">Поиск (запрос в API)</label>
+
+                  <div class="search-row">
+                    <input
+                      type="text"
+                      id="filter-search"
+                      placeholder="Например: 10 строительных компаний Самары с ИНН"
+                      onkeydown="onSearchEnter(event)"
+                    >
+                    <button class="btn btn--primary btn--search" type="button" onclick="runTextSearch()">
+                      Найти
+                    </button>
+                  </div>
+
+                  <p class="hint">Enter тоже работает</p>
                 </div>
 
                 <div class="field">
@@ -383,6 +397,7 @@
                     <option value="both">Телефон + email</option>
                   </select>
                 </div>
+
               </div>
 
               <div class="filters-actions">
@@ -663,27 +678,28 @@
   <script>
     const API_URL = "https://company-finder-api-production.up.railway.app";
 
-  async function apiSearch(queryText, max = 20) {
-    const res = await fetch(`${API_URL}/search`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: queryText,
-        enrich_with_rusprofile: true,
-       max_companies: max
-      })
-  });
+    let isLoading = false;
 
-    if (!res.ok) {
-    const t = await res.text();
-    throw new Error(t || `HTTP ${res.status}`);
+    async function apiSearch(queryText, max = 20) {
+      const res = await fetch(`${API_URL}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: queryText,
+          enrich_with_rusprofile: true,
+          max_companies: max
+        })
+      });
+
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || `HTTP ${res.status}`);
+      }
+
+      return await res.json();
     }
 
-  return await res.json();
-}
-
     const companies = [];
-
     let selectedCompanies = new Set();
     let currentView = 'dashboard';
 
@@ -735,6 +751,10 @@
       document.getElementById('page-title').textContent = titles[view] || view;
     }
 
+    function onSearchEnter(e) {
+      if (e.key === "Enter") runTextSearch();
+    }
+
     function applyFilters() {
       const search = document.getElementById('filter-search')?.value.toLowerCase() || '';
       const region = document.getElementById('filter-region')?.value || '';
@@ -748,7 +768,7 @@
         if (region && c.city !== region) return false;
         if (ring && c.ring != ring) return false;
         if (priority && c.priority !== priority) return false;
-        if (okved && !c.okved.startsWith(okved)) return false;
+        if (okved && !String(c.okved || '').startsWith(okved)) return false;
         if (contacts === 'phone' && !c.phone) return false;
         if (contacts === 'email' && !c.email) return false;
         if (contacts === 'both' && (!c.phone || !c.email)) return false;
@@ -798,15 +818,18 @@
     }
 
     async function runScraper(ring) {
+      if (isLoading) return;
+      isLoading = true;
+
       const indicator = document.getElementById("running-indicator");
       indicator?.classList.remove("is-hidden");
 
       try {
-   
         const ringNum = String(ring).replace("ring", "");
         const queryText = `Найди 20 компаний в кольце ${ringNum} в Самаре`;
         const data = await apiSearch(queryText, 20);
         const apiCompanies = data.companies || [];
+
         const mapped = apiCompanies.map((c, i) => ({
           id: i + 1,
           name: c.short_name || c.name || "—",
@@ -822,25 +845,74 @@
           site: c.website || ""
         }));
 
-      
         companies.length = 0;
         mapped.forEach(x => companies.push(x));
 
         renderCompaniesTable(companies);
-        renderRecentTable?.();
-        renderStats?.();
-        updateSelectedCount?.();
+        renderRecentTable();
+        renderStats();
+        updateSelectedCount();
 
-        
-        if (typeof setView === "function") setView("database");
-
+        setView("database");
       } catch (e) {
         alert("Ошибка при запросе к API: " + e.message);
       } finally {
         indicator?.classList.add("is-hidden");
+        isLoading = false;
       }
     }
 
+    async function runTextSearch() {
+      if (isLoading) return;
+      isLoading = true;
+
+      const input = document.getElementById("filter-search");
+      const query = input.value.trim();
+
+      if (!query) {
+        isLoading = false;
+        alert("Введите текст для поиска");
+        return;
+      }
+
+      const indicator = document.getElementById("running-indicator");
+      indicator?.classList.remove("is-hidden");
+
+      try {
+        const data = await apiSearch(query, 20);
+        const apiCompanies = data.companies || [];
+
+        const mapped = apiCompanies.map((c, i) => ({
+          id: i + 1,
+          name: c.short_name || c.name || "—",
+          inn: c.inn || "—",
+          city: c.city || c.legal_address || "—",
+          ring: 0,
+          okved: c.okved || "—",
+          turnover: Number(String(c.revenue || "0").replace(/\D/g, "")) || 0,
+          priority: "C",
+          phone: (c.phones && c.phones[0]) || "",
+          email: (c.emails && c.emails[0]) || "",
+          contact: c.director_name || "",
+          site: c.website || ""
+        }));
+
+        companies.length = 0;
+        mapped.forEach(c => companies.push(c));
+
+        renderCompaniesTable(companies);
+        renderRecentTable();
+        renderStats();
+        updateSelectedCount();
+
+        setView("database");
+      } catch (e) {
+        alert("Ошибка поиска: " + e.message);
+      } finally {
+        indicator?.classList.add("is-hidden");
+        isLoading = false;
+      }
+    }
 
     function exportExcel() {
       alert('Экспорт в Excel...');
@@ -921,7 +993,7 @@
               <span>Кольцо ${r.ring}</span>
             </span>
             <span class="bar">
-              <span class="bar__fill ${getRingClass(r.ring)}" style="width:${(r.count / companies.length) * 100}%"></span>
+              <span class="bar__fill ${getRingClass(r.ring)}" style="width:${companies.length ? (r.count / companies.length) * 100 : 0}%"></span>
             </span>
             <span class="bar-row__value">${r.count}</span>
           </div>
@@ -941,7 +1013,7 @@
             </span>
             <span class="bar">
               <span class="bar__fill ${p.priority === 'A' ? 'ring-color--1' : p.priority === 'B' ? 'ring-color--3' : 'ring-color--0'}"
-                style="width:${(p.count / companies.length) * 100}%"></span>
+                style="width:${companies.length ? (p.count / companies.length) * 100 : 0}%"></span>
             </span>
             <span class="bar-row__value">${p.count}</span>
           </div>
