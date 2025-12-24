@@ -6,7 +6,7 @@
   <title>СтройПарсер v2.0 - БАЗА TD</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 
 <body>
@@ -661,16 +661,28 @@
   </div>
 
   <script>
+    const API_URL = "https://company-finder-api-production.up.railway.app";
 
-    const companies = [
-      { id: 1, name: 'СамараСтрой', inn: '6312345671', city: 'Самара', ring: 1, okved: '41.20', turnover: 120000000, priority: 'A', phone: '+7 (846) 111-22-33', email: 'info@samarastroy.ru', contact: 'Иванов А.А.', site: 'samarastroy.ru' },
-      { id: 2, name: 'КазаньДом', inn: '1612345672', city: 'Казань', ring: 2, okved: '43.11', turnover: 78000000, priority: 'B', phone: '+7 (843) 222-33-44', email: 'sales@kazandom.ru', contact: 'Петров И.И.', site: 'kazandom.ru' },
-      { id: 3, name: 'МосИнжСтрой', inn: '7712345673', city: 'Москва', ring: 5, okved: '42.21', turnover: 320000000, priority: 'A', phone: '+7 (495) 444-55-66', email: 'office@mis.ru', contact: 'Сидоров С.С.', site: 'mis.ru' },
-      { id: 4, name: 'СтройМастер', inn: '6312345678', city: 'Самара', ring: 1, okved: '43.99', turnover: 45000000, priority: 'B', phone: '+7 (846) 123-45-67', email: 'info@stroymaster.ru', contact: 'Козлов Д.В.', site: 'stroymaster.ru' },
-      { id: 5, name: 'ВолгаСтрой', inn: '6312345679', city: 'Самара', ring: 1, okved: '41.20', turnover: 35000000, priority: 'B', phone: '+7 (846) 234-56-78', email: 'contact@volgastroy.ru', contact: 'Новиков Е.А.', site: 'volgastroy.ru' },
-      { id: 6, name: 'НижегородСтрой', inn: '5212345678', city: 'Екатеринбург', ring: 3, okved: '42.11', turnover: 28000000, priority: 'B', phone: '+7 (831) 333-44-55', email: 'nn@stroy.ru', contact: 'Морозов Р.С.', site: 'nnstroy.ru' },
-      { id: 7, name: 'МалыйСтрой', inn: '6312345680', city: 'Самара', ring: 1, okved: '43.31', turnover: 5000000, priority: 'C', phone: '+7 (846) 111-11-11', email: '', contact: '', site: '' },
-    ];
+  async function apiSearch(queryText, max = 20) {
+    const res = await fetch(`${API_URL}/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: queryText,
+        enrich_with_rusprofile: true,
+       max_companies: max
+      })
+  });
+
+    if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `HTTP ${res.status}`);
+    }
+
+  return await res.json();
+}
+
+    const companies = [];
 
     let selectedCompanies = new Set();
     let currentView = 'dashboard';
@@ -785,15 +797,50 @@
       if (el) el.textContent = `Выбрано: ${selectedCompanies.size}`;
     }
 
-    function runScraper(ring) {
-      const indicator = document.getElementById('running-indicator');
-      indicator?.classList.remove('is-hidden');
+    async function runScraper(ring) {
+      const indicator = document.getElementById("running-indicator");
+      indicator?.classList.remove("is-hidden");
 
-      setTimeout(() => {
-        indicator?.classList.add('is-hidden');
-        alert(`Парсинг кольца ${ring.replace('ring', '')} завершён!`);
-      }, 2000);
+      try {
+   
+        const ringNum = String(ring).replace("ring", "");
+        const queryText = `Найди 20 компаний в кольце ${ringNum} в Самаре`;
+        const data = await apiSearch(queryText, 20);
+        const apiCompanies = data.companies || [];
+        const mapped = apiCompanies.map((c, i) => ({
+          id: i + 1,
+          name: c.short_name || c.name || "—",
+          inn: c.inn || "—",
+          city: c.city || c.legal_address || "—",
+          ring: Number(ringNum) || 0,
+          okved: c.okved || "—",
+          turnover: Number(String(c.revenue || "0").replace(/\D/g, "")) || 0,
+          priority: "C",
+          phone: (c.phones && c.phones[0]) || "",
+          email: (c.emails && c.emails[0]) || "",
+          contact: c.director_name || "",
+          site: c.website || ""
+        }));
+
+      
+        companies.length = 0;
+        mapped.forEach(x => companies.push(x));
+
+        renderCompaniesTable(companies);
+        renderRecentTable?.();
+        renderStats?.();
+        updateSelectedCount?.();
+
+        
+        if (typeof setView === "function") setView("database");
+
+      } catch (e) {
+        alert("Ошибка при запросе к API: " + e.message);
+      } finally {
+        indicator?.classList.add("is-hidden");
+      }
     }
+
 
     function exportExcel() {
       alert('Экспорт в Excel...');
