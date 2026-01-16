@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -14,7 +15,6 @@
 
     <!-- Sidebar -->
     <aside class="sidebar">
-      <!-- Logo -->
       <div class="sidebar__logo">
         <div class="brand">
           <div class="brand__badge">
@@ -27,13 +27,10 @@
         </div>
       </div>
 
-      <!-- Navigation -->
       <nav class="sidebar__nav">
-
         <p class="nav-section-title">Главное</p>
 
-        <button type="button" onclick="setView('dashboard')" id="nav-dashboard"
-                class="nav-item nav-item--active">
+        <button type="button" class="nav-item nav-item--active" data-nav="dashboard">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"></path>
@@ -42,8 +39,7 @@
           <span class="nav-item__label">Панель</span>
         </button>
 
-        <button type="button" onclick="setView('database')" id="nav-database"
-                class="nav-item">
+        <button type="button" class="nav-item" data-nav="database">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M4 7c0 2.2 3.6 4 8 4s8-1.8 8-4-3.6-4-8-4-8 1.8-8 4zm0 0v10c0 2.2 3.6 4 8 4s8-1.8 8-4V7"></path>
@@ -54,10 +50,10 @@
 
         <p class="nav-section-title">Парсинг</p>
 
-        <button type="button" class="tool-item" onclick="runScraper('ring1')">
+        <button type="button" class="tool-item" data-ring="1">
           <span class="tool-item__left">
             <span class="dot dot--green"></span>
-            <span>Кольцо 1 (0-300км)</span>
+            <span id="ring-btn-1">Кольцо 1 (0-300км)</span>
           </span>
           <span class="tool-item__right">
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -67,10 +63,10 @@
           </span>
         </button>
 
-        <button type="button" class="tool-item" onclick="runScraper('ring2')">
+        <button type="button" class="tool-item" data-ring="2">
           <span class="tool-item__left">
             <span class="dot dot--blue"></span>
-            <span>Кольцо 2 (300-500км)</span>
+            <span id="ring-btn-2">Кольцо 2 (300-500км)</span>
           </span>
           <span class="tool-item__right">
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -80,10 +76,10 @@
           </span>
         </button>
 
-        <button type="button" class="tool-item" onclick="runScraper('ring3')">
+        <button type="button" class="tool-item" data-ring="3">
           <span class="tool-item__left">
             <span class="dot dot--yellow"></span>
-            <span>Кольцо 3 (500-700км)</span>
+            <span id="ring-btn-3">Кольцо 3 (500-700км)</span>
           </span>
           <span class="tool-item__right">
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -93,10 +89,10 @@
           </span>
         </button>
 
-        <button type="button" class="tool-item" onclick="runScraper('ring4')">
+        <button type="button" class="tool-item" data-ring="4">
           <span class="tool-item__left">
             <span class="dot dot--orange"></span>
-            <span>Кольцо 4 (700-1000км)</span>
+            <span id="ring-btn-4">Кольцо 4 (700-1000км)</span>
           </span>
           <span class="tool-item__right">
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -106,10 +102,10 @@
           </span>
         </button>
 
-        <button type="button" class="tool-item" onclick="runScraper('ring5')">
+        <button type="button" class="tool-item" data-ring="5">
           <span class="tool-item__left">
             <span class="dot dot--red"></span>
-            <span>Кольцо 5 (1000-1500км)</span>
+            <span id="ring-btn-5">Кольцо 5 (1000-1500км)</span>
           </span>
           <span class="tool-item__right">
             <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -121,8 +117,7 @@
 
         <p class="nav-section-title">Рассылки</p>
 
-        <button type="button" onclick="setView('telegram')" id="nav-telegram"
-                class="nav-item">
+        <button type="button" class="nav-item" data-nav="telegram">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 6.8-1.1 7.2c-.1.7-.4 1-.7 1-.6.1-1-.4-1.6-.8l-2.2-1.5c-1-.6-.4-1 .2-1.6l2.8-2.7c.1-.2-.1-.3-.2-.2L9.6 13c-.4.3-.8.4-1.1.4-.4 0-1-.2-1.6-.4-.6-.2-1.1-.3-1.1-.7 0-.2.3-.4.8-.6 2.9-1.3 4.9-2.1 5.8-2.5 2.8-1.2 3.4-1.4 3.7-1.4.1 0 .3 0 .4.1.1.1.2.2.2.4z"></path>
@@ -131,8 +126,7 @@
           <span class="nav-item__label">Telegram-рассылка</span>
         </button>
 
-        <button type="button" onclick="setView('email')" id="nav-email"
-                class="nav-item">
+        <button type="button" class="nav-item" data-nav="email">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M3 8l9 6 9-6v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm0-1a2 2 0 012-2h14a2 2 0 012 2l-9 6-9-6z"></path>
@@ -141,8 +135,7 @@
           <span class="nav-item__label">Email-рассылка</span>
         </button>
 
-        <button type="button" onclick="setView('pricelist')" id="nav-pricelist"
-                class="nav-item">
+        <button type="button" class="nav-item" data-nav="pricelist">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M7 3h6l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm6 1v5h5"></path>
@@ -154,8 +147,7 @@
 
         <p class="nav-section-title">Отчёты</p>
 
-        <button type="button" onclick="setView('stats')" id="nav-stats"
-                class="nav-item">
+        <button type="button" class="nav-item" data-nav="stats">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 20V11a2 2 0 012-2h2a2 2 0 012 2v9M13 20V7a2 2 0 012-2h2a2 2 0 012 2v13"></path>
@@ -164,24 +156,20 @@
           <span class="nav-item__label">Статистика</span>
         </button>
 
-        <button type="button" onclick="exportExcel()" class="nav-item nav-item--plain">
+        <button type="button" class="nav-item nav-item--plain" id="btn-export">
           <span class="nav-item__icon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 10v6M9 13l3 3 3-3"></path>
               <path d="M7 3h6l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
             </svg>
           </span>
-          <span class="nav-item__label">Экспорт Excel</span>
+          <span class="nav-item__label">Экспорт Excel (CSV)</span>
         </button>
-
       </nav>
 
-      <!-- User block -->
       <div class="sidebar__user">
         <div class="user">
-          <div class="user__avatar">
-            <span>МВ</span>
-          </div>
+          <div class="user__avatar"><span>МВ</span></div>
           <div class="user__meta">
             <p class="user__role">Менеджер</p>
             <p class="user__dept">Продажи</p>
@@ -192,47 +180,46 @@
 
     <!-- Main -->
     <main class="main">
-
-      <!-- Header -->
       <header class="topbar">
-        <h1 id="page-title" class="topbar__title">Панель управления</h1>
+        <div class="topbar__left">
+          <h1 id="page-title" class="topbar__title">Панель управления</h1>
+          <button class="btn btn--ghost btn--tiny" type="button" id="btn-settings">Настройки</button>
+        </div>
 
         <div class="topbar__right">
           <div id="running-indicator" class="running-indicator is-hidden">
             <span class="spinner" aria-hidden="true"></span>
-            <span class="running-indicator__text">Парсинг…</span>
+            <span class="running-indicator__text" id="running-text">Запрос…</span>
           </div>
-          <span class="topbar__date">8 декабря 2025</span>
+          <span class="topbar__date" id="today-date">—</span>
         </div>
       </header>
 
-      <!-- Content -->
       <div class="content">
 
-        <!-- Dashboard View -->
+        <!-- Dashboard -->
         <section id="view-dashboard" class="view is-active">
           <div class="stack stack--lg">
-
             <div class="stats-grid stats-grid--5">
               <div class="card card--stat">
                 <p class="stat__label">Всего компаний</p>
-                <p class="stat__value">156</p>
+                <p class="stat__value" id="stat-total">0</p>
               </div>
               <div class="card card--stat">
                 <p class="stat__label">Приоритет A</p>
-                <p class="stat__value stat__value--green">23</p>
+                <p class="stat__value stat__value--green" id="stat-a">0</p>
               </div>
               <div class="card card--stat">
                 <p class="stat__label">Приоритет B</p>
-                <p class="stat__value stat__value--yellow">45</p>
+                <p class="stat__value stat__value--yellow" id="stat-b">0</p>
               </div>
               <div class="card card--stat">
                 <p class="stat__label">Приоритет C</p>
-                <p class="stat__value stat__value--gray">88</p>
+                <p class="stat__value stat__value--gray" id="stat-c">0</p>
               </div>
               <div class="card card--stat">
-                <p class="stat__label">Новые за 7 дней</p>
-                <p class="stat__value stat__value--blue">12</p>
+                <p class="stat__label">С выбранным контактом</p>
+                <p class="stat__value stat__value--blue" id="stat-contact">0</p>
               </div>
             </div>
 
@@ -244,23 +231,19 @@
                 <div class="stack">
                   <div class="metric-row">
                     <span class="metric-row__label">Найдено компаний</span>
-                    <span class="metric-row__value">+34</span>
+                    <span class="metric-row__value" id="metric-found">0</span>
                   </div>
                   <div class="metric-row">
-                    <span class="metric-row__label">Отправлено писем</span>
-                    <span class="metric-row__value">156</span>
+                    <span class="metric-row__label">Выбрано</span>
+                    <span class="metric-row__value" id="metric-selected">0</span>
                   </div>
                   <div class="metric-row">
-                    <span class="metric-row__label">Telegram-рассылок</span>
-                    <span class="metric-row__value">89</span>
+                    <span class="metric-row__label">С email</span>
+                    <span class="metric-row__value" id="metric-email">0</span>
                   </div>
                   <div class="metric-row">
-                    <span class="metric-row__label">Прайс-листов</span>
-                    <span class="metric-row__value">45</span>
-                  </div>
-                  <div class="metric-row">
-                    <span class="metric-row__label">Получено ответов</span>
-                    <span class="metric-row__value metric-row__value--green">12</span>
+                    <span class="metric-row__label">С телефоном</span>
+                    <span class="metric-row__value" id="metric-phone">0</span>
                   </div>
                 </div>
               </div>
@@ -270,34 +253,29 @@
                   <h3 class="card__title">Быстрые действия</h3>
                 </div>
                 <div class="stack">
-                  <button class="btn btn--primary" type="button" onclick="setView('database')">Открыть базу</button>
-                  <button class="btn btn--soft" type="button" onclick="setView('telegram')">Создать Telegram-рассылку</button>
-                  <button class="btn btn--soft" type="button" onclick="setView('email')">Создать Email-рассылку</button>
-                  <button class="btn btn--soft" type="button" onclick="setView('pricelist')">Отправить прайс-лист</button>
+                  <button class="btn btn--primary" type="button" data-nav="database">Открыть базу</button>
+                  <button class="btn btn--soft" type="button" data-nav="telegram">Создать Telegram-рассылку</button>
+                  <button class="btn btn--soft" type="button" data-nav="email">Создать Email-рассылку</button>
+                  <button class="btn btn--soft" type="button" data-nav="pricelist">Прайс-листы</button>
                 </div>
               </div>
 
               <div class="card">
                 <div class="card__header">
-                  <h3 class="card__title">Автоматизация</h3>
+                  <h3 class="card__title">Инструменты</h3>
                 </div>
                 <div class="stack">
-                  <label class="toggle-row">
-                    <span>Автопарсинг по расписанию</span>
-                    <input type="checkbox" checked>
-                  </label>
-                  <label class="toggle-row">
-                    <span>Еженедельный дайджест</span>
-                    <input type="checkbox" checked>
-                  </label>
+                  <button class="btn btn--ghost" type="button" id="btn-enrich-selected">Enrich выбранных</button>
+                  <button class="btn btn--ghost" type="button" id="btn-clear-selection">Сбросить выбор</button>
+                  <p class="hint">Enrich использует <code>/enrich</code> по ИНН.</p>
                 </div>
               </div>
             </div>
 
             <div class="card">
               <div class="card__header card__header--spaced">
-                <h3 class="card__title">Последние добавленные</h3>
-                <button class="btn btn--link" type="button" onclick="setView('database')">Все компании →</button>
+                <h3 class="card__title">Последние в таблице</h3>
+                <button class="btn btn--link" type="button" data-nav="database">Все компании →</button>
               </div>
 
               <div class="table-wrap">
@@ -305,7 +283,7 @@
                   <thead>
                     <tr>
                       <th>Компания</th>
-                      <th>Город</th>
+                      <th>Город/адрес</th>
                       <th>ОКВЭД</th>
                       <th>Оборот</th>
                       <th>Приоритет</th>
@@ -316,11 +294,10 @@
                 </table>
               </div>
             </div>
-
           </div>
         </section>
 
-        <!-- Database View -->
+        <!-- Database -->
         <section id="view-database" class="view">
           <div class="stack stack--md">
 
@@ -335,9 +312,8 @@
                       type="text"
                       id="filter-search"
                       placeholder="Например: 10 строительных компаний Самары с ИНН"
-                      onkeydown="onSearchEnter(event)"
                     >
-                    <button class="btn btn--primary btn--search" type="button" onclick="runTextSearch()">
+                    <button class="btn btn--primary btn--search" type="button" id="btn-search">
                       Найти
                     </button>
                   </div>
@@ -347,7 +323,7 @@
 
                 <div class="field">
                   <label for="filter-region">Регион</label>
-                  <select id="filter-region" onchange="applyFilters()">
+                  <select id="filter-region">
                     <option value="">Все регионы</option>
                     <option value="Самара">Самара</option>
                     <option value="Казань">Казань</option>
@@ -358,29 +334,29 @@
 
                 <div class="field">
                   <label for="filter-ring">Кольцо</label>
-                  <select id="filter-ring" onchange="applyFilters()">
+                  <select id="filter-ring">
                     <option value="">Все</option>
-                    <option value="1">1 (0-300км)</option>
-                    <option value="2">2 (300-500км)</option>
-                    <option value="3">3 (500-700км)</option>
-                    <option value="4">4 (700-1000км)</option>
-                    <option value="5">5 (1000-1500км)</option>
+                    <option value="1" id="ring-opt-1">1 (0-300км)</option>
+                    <option value="2" id="ring-opt-2">2 (300-500км)</option>
+                    <option value="3" id="ring-opt-3">3 (500-700км)</option>
+                    <option value="4" id="ring-opt-4">4 (700-1000км)</option>
+                    <option value="5" id="ring-opt-5">5 (1000-1500км)</option>
                   </select>
                 </div>
 
                 <div class="field">
                   <label for="filter-priority">Приоритет</label>
-                  <select id="filter-priority" onchange="applyFilters()">
+                  <select id="filter-priority">
                     <option value="">Все</option>
-                    <option value="A">A (&gt;100М)</option>
-                    <option value="B">B (10-100М)</option>
-                    <option value="C">C (&lt;10М)</option>
+                    <option value="A" id="prio-opt-a">A (&gt;100М)</option>
+                    <option value="B" id="prio-opt-b">B (10-100М)</option>
+                    <option value="C" id="prio-opt-c">C (&lt;10М)</option>
                   </select>
                 </div>
 
                 <div class="field">
                   <label for="filter-okved">ОКВЭД</label>
-                  <select id="filter-okved" onchange="applyFilters()">
+                  <select id="filter-okved">
                     <option value="">Все виды</option>
                     <option value="41">41 - Строительство зданий</option>
                     <option value="42">42 - Инженерные сооружения</option>
@@ -390,7 +366,7 @@
 
                 <div class="field">
                   <label for="filter-contacts">Контакты</label>
-                  <select id="filter-contacts" onchange="applyFilters()">
+                  <select id="filter-contacts">
                     <option value="">Любые</option>
                     <option value="phone">Есть телефон</option>
                     <option value="email">Есть email</option>
@@ -402,13 +378,13 @@
 
               <div class="filters-actions">
                 <label class="checkbox-row">
-                  <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll()">
-                  <span>Выбрать все</span>
+                  <input type="checkbox" id="select-all-cb">
+                  <span>Выбрать все (по фильтру)</span>
                 </label>
 
                 <div class="filters-actions__right">
-                  <button class="btn btn--ghost" type="button" onclick="clearFilters()">Сбросить фильтры</button>
-                  <button class="btn btn--soft" type="button" onclick="selectAll()">Выбрать все компании</button>
+                  <button class="btn btn--ghost" type="button" id="btn-clear-filters">Сбросить фильтры</button>
+                  <button class="btn btn--soft" type="button" id="btn-select-all">Выбрать все компании</button>
                 </div>
               </div>
             </div>
@@ -421,7 +397,7 @@
                       <th class="col-check"></th>
                       <th>Компания</th>
                       <th>ИНН</th>
-                      <th>Город</th>
+                      <th>Город/адрес</th>
                       <th>ОКВЭД</th>
                       <th>Оборот</th>
                       <th>Приоритет</th>
@@ -444,189 +420,121 @@
           </div>
         </section>
 
-        <!-- Telegram View -->
+        <!-- Telegram -->
         <section id="view-telegram" class="view">
           <div class="cards-grid cards-grid--2">
 
             <div class="card">
               <div class="card__header">
-                <h3 class="card__title">Создать рассылку</h3>
+                <h3 class="card__title">Telegram (payload)</h3>
               </div>
 
               <div class="stack">
                 <div class="field">
-                  <label>Получатели</label>
-                  <select>
-                    <option>Все компании с Telegram (89)</option>
-                    <option>Приоритет A (23)</option>
-                    <option>Приоритет B (45)</option>
-                    <option>Кольцо 1 - Самара (34)</option>
-                    <option>Новые за неделю (12)</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label>Шаблон</label>
-                  <select>
-                    <option>Приветственное сообщение</option>
-                    <option>Акция недели</option>
-                    <option>Запрос КП</option>
-                  </select>
-                </div>
-
-                <div class="field">
-                  <label>Текст сообщения</label>
-                  <textarea rows="6">Здравствуйте! Подготовили для вас актуальные предложения по строительным материалам...</textarea>
+                  <label>Сообщение</label>
+                  <textarea rows="6" id="tg-text">Здравствуйте! Подготовили для вас актуальные предложения по строительным материалам…</textarea>
                 </div>
 
                 <div class="stack stack--sm">
                   <label class="checkbox-row">
-                    <input type="checkbox" checked>
-                    <span>Добавить персонализацию (имя контакта)</span>
-                  </label>
-                  <label class="checkbox-row">
-                    <input type="checkbox">
-                    <span>Прикрепить прайс-лист</span>
+                    <input type="checkbox" id="tg-personalize" checked>
+                    <span>Персонализация (имя контакта)</span>
                   </label>
                 </div>
 
-                <button class="btn btn--primary" type="button" onclick="sendTelegramSelected()">Отправить рассылку</button>
+                <button class="btn btn--primary" type="button" id="btn-tg-copy">Скопировать payload выбранным</button>
+                <p class="hint">Сейчас API не имеет endpoint для отправки Telegram — поэтому копируем JSON (идеально для n8n/webhook).</p>
               </div>
             </div>
 
             <div class="card">
               <div class="card__header">
-                <h3 class="card__title">История рассылок</h3>
+                <h3 class="card__title">Выбранные</h3>
               </div>
 
               <div class="stack">
-                <div class="history-item">
-                  <div class="history-item__row">
-                    <span class="history-item__title">Приоритет A</span>
-                    <span class="history-item__date">07.12.2025</span>
-                  </div>
-                  <p class="history-item__meta">Отправлено: 23 / Доставлено: 21 / Ответов: 3</p>
-                </div>
-
-                <div class="history-item">
-                  <div class="history-item__row">
-                    <span class="history-item__title">Новые компании</span>
-                    <span class="history-item__date">05.12.2025</span>
-                  </div>
-                  <p class="history-item__meta">Отправлено: 15 / Доставлено: 14 / Ответов: 2</p>
-                </div>
+                <p class="hint" id="tg-selected-hint">Выбрано: 0</p>
+                <button class="btn btn--ghost" type="button" data-nav="database">Открыть базу и выбрать компании</button>
               </div>
             </div>
 
           </div>
         </section>
 
-        <!-- Email View -->
+        <!-- Email -->
         <section id="view-email" class="view">
           <div class="cards-grid cards-grid--2">
 
             <div class="card">
               <div class="card__header">
-                <h3 class="card__title">Email-рассылка</h3>
+                <h3 class="card__title">Email (payload)</h3>
               </div>
 
               <div class="stack">
                 <div class="field">
-                  <label>Получатели</label>
-                  <select>
-                    <option>Все с email (134)</option>
-                    <option>Приоритет A (23)</option>
-                    <option>Приоритет B (45)</option>
-                    <option>Новые за неделю (12)</option>
-                  </select>
+                  <label>Тема</label>
+                  <input type="text" id="email-subject" value="Актуальные предложения по стройматериалам">
                 </div>
 
                 <div class="field">
-                  <label>Тема письма</label>
-                  <input type="text" value="Актуальные предложения по стройматериалам">
+                  <label>Текст</label>
+                  <textarea rows="8" id="email-text">Здравствуйте! Отправляем вам актуальный прайс-лист и условия сотрудничества…</textarea>
                 </div>
 
-                <div class="field">
-                  <label>Сообщение</label>
-                  <textarea rows="8">Здравствуйте! Отправляем вам актуальный прайс-лист и условия сотрудничества...</textarea>
-                </div>
-
-                <label class="checkbox-row">
-                  <input type="checkbox" checked>
-                  <span>Прикрепить прайс-лист</span>
-                </label>
-
-                <button class="btn btn--primary" type="button" onclick="sendEmailSelected()">Отправить рассылку</button>
+                <button class="btn btn--primary" type="button" id="btn-email-copy">Скопировать payload выбранным</button>
+                <p class="hint">Если добавишь endpoint/вебхук — поменяем одну строку (fetch) и будет настоящая отправка.</p>
               </div>
             </div>
 
             <div class="card">
               <div class="card__header">
-                <h3 class="card__title">Шаблоны</h3>
+                <h3 class="card__title">Выбранные</h3>
               </div>
 
               <div class="stack">
-                <button class="btn btn--soft" type="button">Коммерческое предложение</button>
-                <button class="btn btn--soft" type="button">Запрос КП</button>
-                <button class="btn btn--soft" type="button">Прайс-лист недели</button>
+                <p class="hint" id="email-selected-hint">Выбрано: 0</p>
+                <button class="btn btn--ghost" type="button" data-nav="database">Открыть базу и выбрать компании</button>
               </div>
             </div>
 
           </div>
         </section>
 
-        <!-- Price List View -->
+        <!-- Pricelist -->
         <section id="view-pricelist" class="view">
           <div class="card">
             <div class="card__header">
-              <h3 class="card__title">Отправка прайс-листов</h3>
+              <h3 class="card__title">Прайс-листы (payload)</h3>
             </div>
 
             <div class="two-col">
               <div class="stack">
                 <div class="field">
                   <label>Выберите прайс-лист</label>
-                  <div class="radio-list">
-                    <label class="radio-item">
-                      <input type="radio" name="pricelist" checked>
-                      <span class="radio-item__text">
-                        <span class="radio-item__title">Общий прайс-лист</span>
-                        <span class="radio-item__sub">Арматура, бетон, блоки, цемент</span>
-                      </span>
-                    </label>
+                  <select id="pricelist-type">
+                    <option value="general">Общий прайс-лист</option>
+                    <option value="finishing">Отделочные материалы</option>
+                  </select>
+                </div>
 
-                    <label class="radio-item">
-                      <input type="radio" name="pricelist">
-                      <span class="radio-item__text">
-                        <span class="radio-item__title">Отделочные материалы</span>
-                        <span class="radio-item__sub">Плитка, краска, обои</span>
-                      </span>
-                    </label>
-                  </div>
+                <div class="field">
+                  <label>Комментарий</label>
+                  <textarea id="pricelist-note" rows="5">Добрый день! Отправляем актуальный прайс-лист.</textarea>
                 </div>
               </div>
 
               <div class="stack">
-                <div class="field">
-                  <label>Получатели</label>
-                  <select>
-                    <option>Выбранные компании (0)</option>
-                    <option>Приоритет A (23)</option>
-                    <option>Приоритет B (45)</option>
-                    <option>Все с email (134)</option>
-                  </select>
-                </div>
-
-                <button class="btn btn--primary" type="button">Отправить прайс-лист</button>
+                <p class="hint" id="pricelist-selected-hint">Выбрано: 0</p>
+                <button class="btn btn--primary" type="button" id="btn-pricelist-copy">Скопировать payload выбранным</button>
+                <p class="hint">Потом это можно закинуть в n8n/Make и реально слать письма/телегу.</p>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Stats View -->
+        <!-- Stats -->
         <section id="view-stats" class="view">
           <div class="stack stack--md">
-
             <div class="cards-grid cards-grid--2">
               <div class="card">
                 <div class="card__header">
@@ -642,32 +550,6 @@
                 <div class="stack stack--sm" id="priority-stats"></div>
               </div>
             </div>
-
-            <div class="card">
-              <div class="card__header">
-                <h3 class="card__title">Еженедельный отчёт</h3>
-              </div>
-
-              <div class="report-grid report-grid--4">
-                <div class="report-tile">
-                  <p class="report-tile__value">34</p>
-                  <p class="report-tile__label">Новых компаний</p>
-                </div>
-                <div class="report-tile">
-                  <p class="report-tile__value report-tile__value--blue">156</p>
-                  <p class="report-tile__label">Отправлено писем</p>
-                </div>
-                <div class="report-tile">
-                  <p class="report-tile__value report-tile__value--green">12</p>
-                  <p class="report-tile__label">Получено ответов</p>
-                </div>
-                <div class="report-tile">
-                  <p class="report-tile__value report-tile__value--purple">7.7%</p>
-                  <p class="report-tile__label">Конверсия</p>
-                </div>
-              </div>
-            </div>
-
           </div>
         </section>
 
@@ -675,358 +557,84 @@
     </main>
   </div>
 
-  <script>
-    const API_URL = "https://company-finder-api-production.up.railway.app";
+  <!-- SETTINGS MODAL -->
+  <div class="modal is-hidden" id="settings-modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title">Настройки</h3>
+        <button class="btn btn--ghost btn--tiny" type="button" data-close-modal>Закрыть</button>
+      </div>
 
-    let isLoading = false;
-
-    async function apiSearch(queryText, max = 20) {
-      const res = await fetch(`${API_URL}/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: queryText,
-          enrich_with_rusprofile: true,
-          max_companies: max
-        })
-      });
-
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || `HTTP ${res.status}`);
-      }
-
-      return await res.json();
-    }
-
-    const companies = [];
-    let selectedCompanies = new Set();
-    let currentView = 'dashboard';
-
-    function formatTurnover(n) {
-      if (n >= 1000000) return (n / 1000000).toFixed(0) + 'М';
-      if (n >= 1000) return (n / 1000).toFixed(0) + 'К';
-      return n;
-    }
-
-    function getPriorityClass(p) {
-      return {
-        'A': 'priority priority--a',
-        'B': 'priority priority--b',
-        'C': 'priority priority--c'
-      }[p] || 'priority priority--c';
-    }
-
-    function getRingClass(r) {
-      return {
-        1: 'ring-color ring-color--1',
-        2: 'ring-color ring-color--2',
-        3: 'ring-color ring-color--3',
-        4: 'ring-color ring-color--4',
-        5: 'ring-color ring-color--5'
-      }[r] || 'ring-color ring-color--0';
-    }
-
-    function setView(view) {
-      currentView = view;
-
-      document.querySelectorAll('.view')
-        .forEach(v => v.classList.remove('is-active'));
-      const target = document.getElementById(`view-${view}`);
-      if (target) target.classList.add('is-active');
-
-      document.querySelectorAll('.nav-item')
-        .forEach(n => n.classList.remove('nav-item--active'));
-      const navItem = document.getElementById(`nav-${view}`);
-      if (navItem) navItem.classList.add('nav-item--active');
-
-      const titles = {
-        dashboard: 'Панель управления',
-        database: 'База клиентов',
-        telegram: 'Telegram-рассылка',
-        email: 'Email-рассылка',
-        stats: 'Статистика',
-        pricelist: 'Прайс-листы'
-      };
-      document.getElementById('page-title').textContent = titles[view] || view;
-    }
-
-    function onSearchEnter(e) {
-      if (e.key === "Enter") runTextSearch();
-    }
-
-    function applyFilters() {
-      const search = document.getElementById('filter-search')?.value.toLowerCase() || '';
-      const region = document.getElementById('filter-region')?.value || '';
-      const ring = document.getElementById('filter-ring')?.value || '';
-      const priority = document.getElementById('filter-priority')?.value || '';
-      const okved = document.getElementById('filter-okved')?.value || '';
-      const contacts = document.getElementById('filter-contacts')?.value || '';
-
-      const filtered = companies.filter(c => {
-        if (search && !c.name.toLowerCase().includes(search) && !c.inn.includes(search)) return false;
-        if (region && c.city !== region) return false;
-        if (ring && c.ring != ring) return false;
-        if (priority && c.priority !== priority) return false;
-        if (okved && !String(c.okved || '').startsWith(okved)) return false;
-        if (contacts === 'phone' && !c.phone) return false;
-        if (contacts === 'email' && !c.email) return false;
-        if (contacts === 'both' && (!c.phone || !c.email)) return false;
-        return true;
-      });
-
-      renderCompaniesTable(filtered);
-    }
-
-    function clearFilters() {
-      const ids = ['filter-search','filter-region','filter-ring','filter-priority','filter-okved','filter-contacts'];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-      });
-      applyFilters();
-    }
-
-    function toggleSelect(id) {
-      if (selectedCompanies.has(id)) selectedCompanies.delete(id);
-      else selectedCompanies.add(id);
-      updateSelectedCount();
-    }
-
-    function toggleSelectAll() {
-      const cb = document.getElementById('select-all-cb');
-      if (!cb) return;
-
-      if (cb.checked) companies.forEach(c => selectedCompanies.add(c.id));
-      else selectedCompanies.clear();
-
-      applyFilters();
-      updateSelectedCount();
-    }
-
-    function selectAll() {
-      companies.forEach(c => selectedCompanies.add(c.id));
-      const cb = document.getElementById('select-all-cb');
-      if (cb) cb.checked = true;
-      applyFilters();
-      updateSelectedCount();
-    }
-
-    function updateSelectedCount() {
-      const el = document.getElementById('selected-count');
-      if (el) el.textContent = `Выбрано: ${selectedCompanies.size}`;
-    }
-
-    async function runScraper(ring) {
-      if (isLoading) return;
-      isLoading = true;
-
-      const indicator = document.getElementById("running-indicator");
-      indicator?.classList.remove("is-hidden");
-
-      try {
-        const ringNum = String(ring).replace("ring", "");
-        const queryText = `Найди 20 компаний в кольце ${ringNum} в Самаре`;
-        const data = await apiSearch(queryText, 20);
-        const apiCompanies = data.companies || [];
-
-        const mapped = apiCompanies.map((c, i) => ({
-          id: i + 1,
-          name: c.short_name || c.name || "—",
-          inn: c.inn || "—",
-          city: c.city || c.legal_address || "—",
-          ring: Number(ringNum) || 0,
-          okved: c.okved || "—",
-          turnover: Number(String(c.revenue || "0").replace(/\D/g, "")) || 0,
-          priority: "C",
-          phone: (c.phones && c.phones[0]) || "",
-          email: (c.emails && c.emails[0]) || "",
-          contact: c.director_name || "",
-          site: c.website || ""
-        }));
-
-        companies.length = 0;
-        mapped.forEach(x => companies.push(x));
-
-        renderCompaniesTable(companies);
-        renderRecentTable();
-        renderStats();
-        updateSelectedCount();
-
-        setView("database");
-      } catch (e) {
-        alert("Ошибка при запросе к API: " + e.message);
-      } finally {
-        indicator?.classList.add("is-hidden");
-        isLoading = false;
-      }
-    }
-
-    async function runTextSearch() {
-      if (isLoading) return;
-      isLoading = true;
-
-      const input = document.getElementById("filter-search");
-      const query = input.value.trim();
-
-      if (!query) {
-        isLoading = false;
-        alert("Введите текст для поиска");
-        return;
-      }
-
-      const indicator = document.getElementById("running-indicator");
-      indicator?.classList.remove("is-hidden");
-
-      try {
-        const data = await apiSearch(query, 20);
-        const apiCompanies = data.companies || [];
-
-        const mapped = apiCompanies.map((c, i) => ({
-          id: i + 1,
-          name: c.short_name || c.name || "—",
-          inn: c.inn || "—",
-          city: c.city || c.legal_address || "—",
-          ring: 0,
-          okved: c.okved || "—",
-          turnover: Number(String(c.revenue || "0").replace(/\D/g, "")) || 0,
-          priority: "C",
-          phone: (c.phones && c.phones[0]) || "",
-          email: (c.emails && c.emails[0]) || "",
-          contact: c.director_name || "",
-          site: c.website || ""
-        }));
-
-        companies.length = 0;
-        mapped.forEach(c => companies.push(c));
-
-        renderCompaniesTable(companies);
-        renderRecentTable();
-        renderStats();
-        updateSelectedCount();
-
-        setView("database");
-      } catch (e) {
-        alert("Ошибка поиска: " + e.message);
-      } finally {
-        indicator?.classList.add("is-hidden");
-        isLoading = false;
-      }
-    }
-
-    function exportExcel() {
-      alert('Экспорт в Excel...');
-    }
-
-    function sendTelegramSelected() {
-      alert(`Отправка Telegram ${selectedCompanies.size} компаниям...`);
-    }
-
-    function sendEmailSelected() {
-      alert(`Отправка Email ${selectedCompanies.size} компаниям...`);
-    }
-
-    function renderCompaniesTable(data = companies) {
-      const tbody = document.getElementById('companies-table');
-      if (!tbody) return;
-
-      tbody.innerHTML = data.map(c => `
-        <tr class="table-row">
-          <td class="cell cell--check">
-            <input type="checkbox"
-              ${selectedCompanies.has(c.id) ? 'checked' : ''}
-              onchange="toggleSelect(${c.id})">
-          </td>
-          <td class="cell cell--strong">${c.name}</td>
-          <td class="cell cell--muted">${c.inn}</td>
-          <td class="cell">${c.city}</td>
-          <td class="cell cell--muted">${c.okved}</td>
-          <td class="cell">${formatTurnover(c.turnover)} ₽</td>
-          <td class="cell">
-            <span class="${getPriorityClass(c.priority)}">${c.priority}</span>
-          </td>
-          <td class="cell">${c.phone || '-'}</td>
-          <td class="cell cell--link">${c.email || '-'}</td>
-          <td class="cell">${c.contact || '-'}</td>
-          <td class="cell cell--actions">
-            <button class="btn btn--link btn--tiny" type="button">Детали</button>
-          </td>
-        </tr>
-      `).join('');
-
-      const countEl = document.getElementById('companies-count');
-      if (countEl) countEl.textContent = `Показано ${data.length} из ${companies.length} компаний`;
-    }
-
-    function renderRecentTable() {
-      const tbody = document.getElementById('recent-table');
-      if (!tbody) return;
-
-      tbody.innerHTML = companies.slice(0, 5).map(c => `
-        <tr class="table-row">
-          <td class="cell cell--strong">${c.name}</td>
-          <td class="cell cell--muted">${c.city}</td>
-          <td class="cell cell--muted">${c.okved}</td>
-          <td class="cell">${formatTurnover(c.turnover)} ₽</td>
-          <td class="cell">
-            <span class="${getPriorityClass(c.priority)}">${c.priority}</span>
-          </td>
-          <td class="cell">${c.contact || '-'}</td>
-        </tr>
-      `).join('');
-    }
-
-    function renderStats() {
-      const ringWrap = document.getElementById('ring-stats');
-      const prioWrap = document.getElementById('priority-stats');
-
-      if (ringWrap) {
-        const ringData = [1,2,3,4,5].map(r => ({
-          ring: r,
-          count: companies.filter(c => c.ring === r).length
-        }));
-
-        ringWrap.innerHTML = ringData.map(r => `
-          <div class="bar-row">
-            <span class="bar-row__label">
-              <span class="dot ${getRingClass(r.ring)}"></span>
-              <span>Кольцо ${r.ring}</span>
-            </span>
-            <span class="bar">
-              <span class="bar__fill ${getRingClass(r.ring)}" style="width:${companies.length ? (r.count / companies.length) * 100 : 0}%"></span>
-            </span>
-            <span class="bar-row__value">${r.count}</span>
+      <div class="modal__body">
+        <div class="stack stack--md">
+          <div class="field">
+            <label>API URL</label>
+            <input type="text" id="cfg-api-url" placeholder="https://...">
+            <p class="hint">Твой Railway домен (например, company-finder-api-production…)</p>
           </div>
-        `).join('');
-      }
 
-      if (prioWrap) {
-        const prioData = ['A','B','C'].map(p => ({
-          priority: p,
-          count: companies.filter(c => c.priority === p).length
-        }));
+          <div class="two-col">
+            <div class="field">
+              <label>Кол-во компаний по умолчанию</label>
+              <input type="text" id="cfg-default-max" placeholder="20">
+            </div>
 
-        prioWrap.innerHTML = prioData.map(p => `
-          <div class="bar-row">
-            <span class="bar-row__label">
-              <span class="${getPriorityClass(p.priority)} priority--inline">${p.priority}</span>
-            </span>
-            <span class="bar">
-              <span class="bar__fill ${p.priority === 'A' ? 'ring-color--1' : p.priority === 'B' ? 'ring-color--3' : 'ring-color--0'}"
-                style="width:${companies.length ? (p.count / companies.length) * 100 : 0}%"></span>
-            </span>
-            <span class="bar-row__value">${p.count}</span>
+            <div class="field">
+              <label>Enrich Rusprofile</label>
+              <select id="cfg-enrich">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </div>
           </div>
-        `).join('');
-      }
-    }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      renderCompaniesTable();
-      renderRecentTable();
-      renderStats();
-      updateSelectedCount();
-    });
-  </script>
+          <div class="card card--filters">
+            <h4 class="modal__subtitle">Приоритеты (в млн ₽)</h4>
+            <div class="two-col">
+              <div class="field">
+                <label>A: больше чем</label>
+                <input type="text" id="cfg-a-min" placeholder="100">
+              </div>
+              <div class="field">
+                <label>B: от (включ.)</label>
+                <input type="text" id="cfg-b-min" placeholder="10">
+              </div>
+            </div>
+            <p class="hint">B автоматически будет &lt; A. C — всё, что меньше B.</p>
+          </div>
+
+          <div class="card card--filters">
+            <h4 class="modal__subtitle">Кольца (км) + кол-во</h4>
+            <div class="ring-settings" id="ring-settings"></div>
+          </div>
+
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" id="btn-reset-config">Сбросить</button>
+            <button class="btn btn--primary" type="button" id="btn-save-config">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAILS MODAL -->
+  <div class="modal is-hidden" id="details-modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-details></div>
+    <div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title">Детали компании</h3>
+        <button class="btn btn--ghost btn--tiny" type="button" data-close-details>Закрыть</button>
+      </div>
+      <div class="modal__body">
+        <pre class="code" id="details-pre">{}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast is-hidden" id="toast"></div>
+
+  <script src="./app.js"></script>
 </body>
 </html>
