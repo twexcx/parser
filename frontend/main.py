@@ -14,6 +14,10 @@ def home():
 def css():
     return FileResponse("styles.css")
 
+@app.get("/app.js")
+def app_js():
+    return FileResponse("app.js")
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
