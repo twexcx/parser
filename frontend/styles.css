@@ -559,6 +559,9 @@ code{
   display:grid;
   grid-template-columns: 1fr;
   gap:12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .ring-settings .ring-row{
   border:1px solid var(--gray-200);
