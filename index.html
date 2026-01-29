@@ -1,0 +1,554 @@
+ <!-- index.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>СтройПарсер v2.0 - БАЗА TD</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div id="app" class="app">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <div class="brand">
+          <div class="brand__badge">
+            <span class="brand__badge-text">БТ</span>
+          </div>
+          <div class="brand__text">
+            <span class="brand__title">БАЗА TD</span>
+            <span class="brand__subtitle">СтройПарсер v2.0</span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar__nav">
+        <p class="nav-section-title">Главное</p>
+
+        <button type="button" class="nav-item nav-item--active" data-nav="dashboard">
+          <span class="nav-item__icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"></path>
+            </svg>
+          </span>
+          <span class="nav-item__label">Панель</span>
+        </button>
+
+        <button type="button" class="nav-item" data-nav="database">
+          <span class="nav-item__icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7c0 2.2 3.6 4 8 4s8-1.8 8-4-3.6-4-8-4-8 1.8-8 4zm0 0v10c0 2.2 3.6 4 8 4s8-1.8 8-4V7"></path>
+            </svg>
+          </span>
+          <span class="nav-item__label">База клиентов</span>
+        </button>
+
+        <p class="nav-section-title">Парсинг</p>
+
+        <button type="button" class="tool-item" data-ring="1">
+          <span class="tool-item__left">
+            <span class="dot dot--green"></span>
+            <span id="ring-btn-1">Кольцо 1 (0-300км)</span>
+          </span>
+          <span class="tool-item__right">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="8"></circle>
+              <path d="M9 7l4 3-4 3z"></path>
+            </svg>
+          </span>
+        </button>
+
+        <button type="button" class="tool-item" data-ring="2">
+          <span class="tool-item__left">
+            <span class="dot dot--blue"></span>
+            <span id="ring-btn-2">Кольцо 2 (300-500км)</span>
+          </span>
+          <span class="tool-item__right">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="8"></circle>
+              <path d="M9 7l4 3-4 3z"></path>
+            </svg>
+          </span>
+        </button>
+
+        <button type="button" class="tool-item" data-ring="3">
+          <span class="tool-item__left">
+            <span class="dot dot--yellow"></span>
+            <span id="ring-btn-3">Кольцо 3 (500-700км)</span>
+          </span>
+          <span class="tool-item__right">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="8"></circle>
+              <path d="M9 7l4 3-4 3z"></path>
+            </svg>
+          </span>
+        </button>
+
+        <button type="button" class="tool-item" data-ring="4">
+          <span class="tool-item__left">
+            <span class="dot dot--orange"></span>
+            <span id="ring-btn-4">Кольцо 4 (700-1000км)</span>
+          </span>
+          <span class="tool-item__right">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="8"></circle>
+              <path d="M9 7l4 3-4 3z"></path>
+            </svg>
+          </span>
+        </button>
+
+        <button type="button" class="tool-item" data-ring="5">
+          <span class="tool-item__left">
+            <span class="dot dot--red"></span>
+            <span id="ring-btn-5">Кольцо 5 (1000-1500км)</span>
+          </span>
+          <span class="tool-item__right">
+            <svg viewBox="0 0 20 20" aria-hidden="true">
+              <circle cx="10" cy="10" r="8"></circle>
+              <path d="M9 7l4 3-4 3z"></path>
+            </svg>
+          </span>
+        </button>
+
+        <p class="nav-section-title">Рассылки</p>
+
+        <button type="button" class="nav-item" data-nav="pricelist">
+          <span class="nav-item__icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3h6l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm6 1v5h5"></path>
+              <path d="M9 12h6M9 16h6"></path>
+            </svg>
+          </span>
+          <span class="nav-item__label">Прайс-листы</span>
+        </button>
+
+        <p class="nav-section-title">Отчёты</p>
+
+        <button type="button" class="nav-item" data-nav="stats">
+          <span class="nav-item__icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 20V11a2 2 0 012-2h2a2 2 0 012 2v9M13 20V7a2 2 0 012-2h2a2 2 0 012 2v13"></path>
+            </svg>
+          </span>
+          <span class="nav-item__label">Статистика</span>
+        </button>
+
+        <button type="button" class="nav-item nav-item--plain" id="btn-export">
+          <span class="nav-item__icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 10v6M9 13l3 3 3-3"></path>
+              <path d="M7 3h6l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+            </svg>
+          </span>
+          <span class="nav-item__label">Экспорт Excel (CSV)</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__user">
+        <div class="user">
+          <div class="user__avatar"><span>МВ</span></div>
+          <div class="user__meta">
+            <p class="user__role">Менеджер</p>
+            <p class="user__dept">Продажи</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar__left">
+          <h1 id="page-title" class="topbar__title">Панель управления</h1>
+          <button class="btn btn--ghost btn--tiny" type="button" id="btn-settings">Настройки</button>
+        </div>
+
+        <div class="topbar__right">
+          <div id="running-indicator" class="running-indicator is-hidden">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="running-indicator__text" id="running-text">Запрос…</span>
+          </div>
+          <span class="topbar__date" id="today-date">—</span>
+        </div>
+      </header>
+
+      <div class="content">
+
+        <!-- Dashboard -->
+        <section id="view-dashboard" class="view is-active">
+          <div class="stack stack--lg">
+            <div class="stats-grid stats-grid--5">
+              <div class="card card--stat">
+                <p class="stat__label">Всего компаний</p>
+                <p class="stat__value" id="stat-total">0</p>
+              </div>
+              <div class="card card--stat">
+                <p class="stat__label">Приоритет A</p>
+                <p class="stat__value stat__value--green" id="stat-a">0</p>
+              </div>
+              <div class="card card--stat">
+                <p class="stat__label">Приоритет B</p>
+                <p class="stat__value stat__value--yellow" id="stat-b">0</p>
+              </div>
+              <div class="card card--stat">
+                <p class="stat__label">Приоритет C</p>
+                <p class="stat__value stat__value--gray" id="stat-c">0</p>
+              </div>
+              <div class="card card--stat">
+                <p class="stat__label">С выбранным контактом</p>
+                <p class="stat__value stat__value--blue" id="stat-contact">0</p>
+              </div>
+            </div>
+
+            <div class="cards-grid cards-grid--3">
+              <div class="card">
+                <div class="card__header">
+                  <h3 class="card__title">Сводка</h3>
+                </div>
+                <div class="stack">
+                  <div class="metric-row">
+                    <span class="metric-row__label">Найдено компаний</span>
+                    <span class="metric-row__value" id="metric-found">0</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-row__label">Выбрано</span>
+                    <span class="metric-row__value" id="metric-selected">0</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-row__label">С email</span>
+                    <span class="metric-row__value" id="metric-email">0</span>
+                  </div>
+                  <div class="metric-row">
+                    <span class="metric-row__label">С телефоном</span>
+                    <span class="metric-row__value" id="metric-phone">0</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__header">
+                  <h3 class="card__title">Быстрые действия</h3>
+                </div>
+                <div class="stack">
+                  <button class="btn btn--primary" type="button" data-nav="database">Открыть базу</button>
+                  <button class="btn btn--soft" type="button" data-nav="pricelist">Прайс-листы</button>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card__header">
+                  <h3 class="card__title">Инструменты</h3>
+                </div>
+                <div class="stack">
+                  <button class="btn btn--ghost" type="button" id="btn-enrich-selected">Enrich выбранных</button>
+                  <button class="btn btn--ghost" type="button" id="btn-clear-selection">Сбросить выбор</button>
+                  <p class="hint">Enrich использует <code>/enrich</code> по ИНН.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card__header card__header--spaced">
+                <h3 class="card__title">Последние в таблице</h3>
+                <button class="btn btn--link" type="button" data-nav="database">Все компании →</button>
+              </div>
+
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Компания</th>
+                      <th>Город/адрес</th>
+                      <th>ОКВЭД</th>
+                      <th>Оборот</th>
+                      <th>Приоритет</th>
+                      <th>Контакт</th>
+                    </tr>
+                  </thead>
+                  <tbody id="recent-table"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Database -->
+        <section id="view-database" class="view">
+          <div class="stack stack--md">
+
+            <div class="card card--filters">
+              <div class="filters-grid filters-grid--6">
+
+                <div class="field">
+                  <label for="filter-search">Поиск (запрос в API)</label>
+
+                  <div class="search-row">
+                    <input
+                      type="text"
+                      id="filter-search"
+                      placeholder="Например: 10 строительных компаний Самары с ИНН"
+                    >
+                    <button class="btn btn--primary btn--search" type="button" id="btn-search">
+                      Найти
+                    </button>
+                  </div>
+
+                  <p class="hint">Enter тоже работает</p>
+                </div>
+
+                <div class="field">
+                  <label for="filter-region">Регион</label>
+                  <select id="filter-region">
+                    <option value="">Все регионы</option>
+                    <option value="Самара">Самара</option>
+                    <option value="Казань">Казань</option>
+                    <option value="Москва">Москва</option>
+                    <option value="Екатеринбург">Екатеринбург</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="filter-ring">Кольцо</label>
+                  <select id="filter-ring">
+                    <option value="">Все</option>
+                    <option value="1" id="ring-opt-1">1 (0-300км)</option>
+                    <option value="2" id="ring-opt-2">2 (300-500км)</option>
+                    <option value="3" id="ring-opt-3">3 (500-700км)</option>
+                    <option value="4" id="ring-opt-4">4 (700-1000км)</option>
+                    <option value="5" id="ring-opt-5">5 (1000-1500км)</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="filter-priority">Приоритет</label>
+                  <select id="filter-priority">
+                    <option value="">Все</option>
+                    <option value="A" id="prio-opt-a">A (&gt;100М)</option>
+                    <option value="B" id="prio-opt-b">B (10-100М)</option>
+                    <option value="C" id="prio-opt-c">C (&lt;10М)</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="filter-okved">ОКВЭД</label>
+                  <select id="filter-okved">
+                    <option value="">Все виды</option>
+                    <option value="41">41 - Строительство зданий</option>
+                    <option value="42">42 - Инженерные сооружения</option>
+                    <option value="43">43 - Спец. строительные работы</option>
+                  </select>
+                </div>
+
+                <div class="field">
+                  <label for="filter-contacts">Контакты</label>
+                  <select id="filter-contacts">
+                    <option value="">Любые</option>
+                    <option value="phone">Есть телефон</option>
+                    <option value="email">Есть email</option>
+                    <option value="both">Телефон + email</option>
+                  </select>
+                </div>
+
+              </div>
+
+              <div class="filters-actions">
+                <label class="checkbox-row">
+                  <input type="checkbox" id="select-all-cb">
+                  <span>Выбрать все (по фильтру)</span>
+                </label>
+
+                <div class="filters-actions__right">
+                  <button class="btn btn--ghost" type="button" id="btn-clear-filters">Сбросить фильтры</button>
+                  <button class="btn btn--soft" type="button" id="btn-select-all">Выбрать все компании</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="table-wrap">
+                <table class="table table--companies">
+                  <thead>
+                    <tr>
+                      <th class="col-check"></th>
+                      <th>Компания</th>
+                      <th>ИНН</th>
+                      <th>Город/адрес</th>
+                      <th>ОКВЭД</th>
+                      <th>Оборот</th>
+                      <th>Приоритет</th>
+                      <th>Телефон</th>
+                      <th>Email</th>
+                      <th>Контакт</th>
+                      <th class="col-actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="companies-table"></tbody>
+                </table>
+              </div>
+
+              <div class="table-footer">
+                <span id="companies-count">Показано 0 компаний</span>
+                <span id="selected-count">Выбрано: 0</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Pricelist -->
+        <section id="view-pricelist" class="view">
+          <div class="card">
+            <div class="card__header">
+              <h3 class="card__title">Загрузка прайс-листов</h3>
+            </div>
+
+            <div class="stack">
+              <!-- File Upload Zone -->
+              <div id="file-drop-zone" class="file-drop-zone">
+                <div class="file-drop-zone__content">
+                  <svg class="file-drop-zone__icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 3h6l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm6 1v5h5"></path>
+                    <path d="M12 11v6M9 14l3-3 3 3"></path>
+                  </svg>
+                  <p class="file-drop-zone__title">Перетащите файл сюда</p>
+                  <p class="file-drop-zone__subtitle">или</p>
+                  <button type="button" class="btn btn--primary" id="btn-select-file">Выбрать файл</button>
+                  <p class="hint">Поддерживаются форматы: Excel (.xlsx, .xls), CSV (.csv)</p>
+                </div>
+              </div>
+
+              <!-- Hidden file input -->
+              <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+
+              <!-- Selected File Display -->
+              <div id="selected-file-info" class="selected-file-info is-hidden">
+                <div class="selected-file-info__content">
+                  <svg class="selected-file-info__icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 3h6l5 5v13a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm6 1v5h5"></path>
+                  </svg>
+                  <div class="selected-file-info__text">
+                    <p class="selected-file-info__name" id="file-name">—</p>
+                    <p class="selected-file-info__size" id="file-size">—</p>
+                  </div>
+                  <button type="button" class="btn btn--ghost btn--tiny" id="btn-remove-file">Удалить</button>
+                </div>
+              </div>
+
+              <!-- Upload Button -->
+              <button type="button" class="btn btn--primary" id="btn-upload-file" disabled>
+                Загрузить прайс-лист
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Stats -->
+        <section id="view-stats" class="view">
+          <div class="stack stack--md">
+            <div class="cards-grid cards-grid--2">
+              <div class="card">
+                <div class="card__header">
+                  <h3 class="card__title">По кольцам</h3>
+                </div>
+                <div class="stack stack--sm" id="ring-stats"></div>
+              </div>
+
+              <div class="card">
+                <div class="card__header">
+                  <h3 class="card__title">По приоритетам</h3>
+                </div>
+                <div class="stack stack--sm" id="priority-stats"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal is-hidden" id="settings-modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title">Настройки</h3>
+        <button class="btn btn--ghost btn--tiny" type="button" data-close-modal>Закрыть</button>
+      </div>
+
+      <div class="modal__body">
+        <div class="stack stack--md">
+          <div class="field">
+            <label>API URL</label>
+            <input type="text" id="cfg-api-url" placeholder="https://...">
+            <p class="hint">Твой Railway домен (например, company-finder-api-production…)</p>
+          </div>
+
+          <div class="two-col">
+            <div class="field">
+              <label>Кол-во компаний по умолчанию</label>
+              <input type="text" id="cfg-default-max" placeholder="20">
+            </div>
+
+            <div class="field">
+              <label>Enrich Rusprofile</label>
+              <select id="cfg-enrich">
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card card--filters">
+            <h4 class="modal__subtitle">Приоритеты (в млн ₽)</h4>
+            <div class="two-col">
+              <div class="field">
+                <label>A: больше чем</label>
+                <input type="text" id="cfg-a-min" placeholder="100">
+              </div>
+              <div class="field">
+                <label>B: от (включ.)</label>
+                <input type="text" id="cfg-b-min" placeholder="10">
+              </div>
+            </div>
+            <p class="hint">B автоматически будет &lt; A. C — всё, что меньше B.</p>
+          </div>
+
+          <div class="card card--filters">
+            <h4 class="modal__subtitle">Кольца (км) + кол-во</h4>
+            <div class="ring-settings" id="ring-settings"></div>
+          </div>
+
+          <div class="modal__actions">
+            <button class="btn btn--ghost" type="button" id="btn-reset-config">Сбросить</button>
+            <button class="btn btn--primary" type="button" id="btn-save-config">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAILS MODAL -->
+  <div class="modal is-hidden" id="details-modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-details></div>
+    <div class="modal__panel modal__panel--wide" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title">Детали компании</h3>
+        <button class="btn btn--ghost btn--tiny" type="button" data-close-details>Закрыть</button>
+      </div>
+      <div class="modal__body">
+        <pre class="code" id="details-pre">{}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Script -->
+  <script src="./app.js"></script>
+
+</body>
+</html>
