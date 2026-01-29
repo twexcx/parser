@@ -1,948 +1,1324 @@
-// app.js
-"use strict";
+// ============================================
+// СтройПарсер v2.0 - Company Finder Dashboard
+// ============================================
 
-/**
- * API: /search, /enrich (см README) :contentReference[oaicite:2]{index=2}
- * Фронт: переписан под нормальную работу с API и настройками (localStorage).
- */
-
-const STORAGE_KEY = "TD_PARSER_CONFIG_V1";
+// ============================================
+// 1. CONFIGURATION MANAGEMENT
+// ============================================
 
 const DEFAULT_CONFIG = {
-  apiUrl: "https://company-finder-api-production.up.railway.app",
-  defaultMax: 20,
-  enrichWithRusprofile: true,
-
-  // Пороги в млн ₽ (UI-логика), внутри переводим в ₽
-  priority: {
-    aMinM: 100,
-    bMinM: 10
-  },
-
-  rings: {
-    1: { fromKm: 0, toKm: 300, max: 20 },
-    2: { fromKm: 300, toKm: 500, max: 20 },
-    3: { fromKm: 500, toKm: 700, max: 20 },
-    4: { fromKm: 700, toKm: 1000, max: 20 },
-    5: { fromKm: 1000, toKm: 1500, max: 20 }
-  }
+  apiUrl: '',
+  defaultMaxCompanies: 20,
+  enrichRusprofile: true,
+  priorityA: 100, // > 100M ₽ = Priority A
+  priorityB: 10,  // 10-100M ₽ = Priority B, < 10M = Priority C
+  rings: [
+    { id: 1, label: 'Кольцо 1', minKm: 0, maxKm: 300, maxCompanies: 50, color: 'green' },
+    { id: 2, label: 'Кольцо 2', minKm: 300, maxKm: 500, maxCompanies: 40, color: 'blue' },
+    { id: 3, label: 'Кольцо 3', minKm: 500, maxKm: 700, maxCompanies: 30, color: 'yellow' },
+    { id: 4, label: 'Кольцо 4', minKm: 700, maxKm: 1000, maxCompanies: 20, color: 'orange' },
+    { id: 5, label: 'Кольцо 5', minKm: 1000, maxKm: 1500, maxCompanies: 10, color: 'red' }
+  ]
 };
 
-let config = loadConfig();
-
-// state
-let isLoading = false;
-let companies = [];
-let filteredCompanies = [];
-let selected = new Set(); // ids
-
-// ========= utils =========
-function $(sel) { return document.querySelector(sel); }
-function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
-
-function toast(msg) {
-  const el = $("#toast");
-  el.textContent = msg;
-  el.classList.remove("is-hidden");
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.add("is-hidden"), 2200);
-}
-
-function formatDateRu(d = new Date()) {
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
-}
-
-function parseMoneyToNumber(value) {
-  // revenue приходит строкой типа "10 000 000" — оставляем цифры
-  if (value == null) return 0;
-  const s = String(value);
-  const n = Number(s.replace(/[^\d]/g, "")) || 0;
-  return n;
-}
-
-function formatTurnoverRub(n) {
-  const num = Number(n) || 0;
-  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1) + " млрд";
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(0) + " млн";
-  if (num >= 1_000) return (num / 1_000).toFixed(0) + " тыс";
-  return String(num);
-}
-
-function priorityFromRevenue(revenueRub) {
-  const aMin = (Number(config.priority.aMinM) || 0) * 1_000_000;
-  const bMin = (Number(config.priority.bMinM) || 0) * 1_000_000;
-
-  if (revenueRub >= aMin && aMin > 0) return "A";
-  if (revenueRub >= bMin && bMin > 0) return "B";
-  return "C";
-}
-
-function getPriorityClass(p) {
-  return ({
-    A: "priority priority--a",
-    B: "priority priority--b",
-    C: "priority priority--c"
-  })[p] || "priority priority--c";
-}
-
-function ringColorClass(ring) {
-  const r = Number(ring) || 0;
-  if (r >= 1 && r <= 5) return `ring-color--${r}`;
-  return "ring-color--0";
-}
-
-function safeText(v) {
-  if (v == null) return "";
-  return String(v);
-}
-
-// ========= config =========
 function loadConfig() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return structuredClone(DEFAULT_CONFIG);
-    const parsed = JSON.parse(raw);
-    return deepMerge(structuredClone(DEFAULT_CONFIG), parsed);
-  } catch {
-    return structuredClone(DEFAULT_CONFIG);
-  }
-}
-
-function saveConfig() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-}
-
-function deepMerge(base, extra) {
-  for (const k of Object.keys(extra || {})) {
-    const v = extra[k];
-    if (v && typeof v === "object" && !Array.isArray(v)) {
-      base[k] = deepMerge(base[k] ?? {}, v);
-    } else {
-      base[k] = v;
+    const saved = localStorage.getItem('stroiparser_config');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return { ...DEFAULT_CONFIG, ...parsed };
     }
+  } catch (error) {
+    console.error('Error loading config:', error);
   }
-  return base;
+  return DEFAULT_CONFIG;
 }
 
-function applyConfigLabels() {
-  // Rings labels (sidebar + select)
-  for (let i = 1; i <= 5; i++) {
-    const r = config.rings[i];
-    const label = `${i} (${r.fromKm}-${r.toKm}км)`;
-
-    const btn = document.getElementById(`ring-btn-${i}`);
-    if (btn) btn.textContent = `Кольцо ${label}`;
-
-    const opt = document.getElementById(`ring-opt-${i}`);
-    if (opt) opt.textContent = label;
-  }
-
-  // Priority select labels
-  const a = Number(config.priority.aMinM) || 0;
-  const b = Number(config.priority.bMinM) || 0;
-
-  const prA = $("#prio-opt-a");
-  const prB = $("#prio-opt-b");
-  const prC = $("#prio-opt-c");
-
-  if (prA) prA.textContent = `A (>${a}М)`;
-  if (prB) prB.textContent = `B (${b}-${a}М)`;
-  if (prC) prC.textContent = `C (<${b}М)`;
-}
-
-// ========= API =========
-async function apiPost(path, body) {
-  const url = `${config.apiUrl}${path}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-
-  const text = await res.text();
-  let json = null;
-  try { json = text ? JSON.parse(text) : null; } catch { /* ignore */ }
-
-  if (!res.ok) {
-    const msg = (json && (json.detail || json.message)) ? (json.detail || json.message) : (text || `HTTP ${res.status}`);
-    throw new Error(msg);
-  }
-  return json ?? {};
-}
-
-async function apiSearch(query, maxCompanies) {
-  return apiPost("/search", {
-    query,
-    enrich_with_rusprofile: Boolean(config.enrichWithRusprofile),
-    max_companies: Number(maxCompanies) || Number(config.defaultMax) || 20
-  });
-}
-
-async function apiEnrich(innList) {
-  return apiPost("/enrich", innList);
-}
-
-// ========= loading indicator =========
-function setLoading(on, text = "Запрос…") {
-  isLoading = on;
-  const ind = $("#running-indicator");
-  const t = $("#running-text");
-  if (t) t.textContent = text;
-  if (!ind) return;
-
-  if (on) ind.classList.remove("is-hidden");
-  else ind.classList.add("is-hidden");
-
-  // disable some buttons during loading
-  const disable = (sel, v) => {
-    const el = $(sel);
-    if (el) el.disabled = v;
-  };
-  disable("#btn-search", on);
-  disable("#btn-export", on);
-  disable("#btn-enrich-selected", on);
-}
-
-// ========= view navigation =========
-function setView(view) {
-  $all(".view").forEach(v => v.classList.remove("is-active"));
-  const target = document.getElementById(`view-${view}`);
-  if (target) target.classList.add("is-active");
-
-  $all(".nav-item").forEach(n => n.classList.remove("nav-item--active"));
-  const nav = $all("[data-nav]").find(x => x.dataset.nav === view);
-  if (nav && nav.classList.contains("nav-item")) nav.classList.add("nav-item--active");
-
-  const titles = {
-    dashboard: "Панель управления",
-    database: "База клиентов",
-    telegram: "Telegram-рассылка",
-    email: "Email-рассылка",
-    stats: "Статистика",
-    pricelist: "Прайс-листы"
-  };
-  const title = titles[view] || view;
-  const h = $("#page-title");
-  if (h) h.textContent = title;
-
-  // update recipients hints in messaging views
-  updateSelectedUI();
-}
-
-// ========= mapping company =========
-function mapCompany(apiCompany, ringNum, idx) {
-  const revenue = parseMoneyToNumber(apiCompany.revenue);
-  const priority = priorityFromRevenue(revenue);
-
-  const phones = Array.isArray(apiCompany.phones) ? apiCompany.phones : [];
-  const emails = Array.isArray(apiCompany.emails) ? apiCompany.emails : [];
-
-  return {
-    id: `${Date.now()}-${idx}-${Math.random().toString(16).slice(2)}`,
-    ring: Number(ringNum) || 0,
-
-    name: apiCompany.short_name || apiCompany.name || "—",
-    inn: apiCompany.inn || "—",
-    okved: apiCompany.okved || "—",
-
-    // у API в примере есть legal_address, city может не быть :contentReference[oaicite:3]{index=3}
-    cityOrAddress: apiCompany.city || apiCompany.legal_address || "—",
-
-    revenueRub: revenue,
-    priority,
-
-    phone: phones[0] || "",
-    email: emails[0] || "",
-    contact: apiCompany.director_name || "",
-    site: apiCompany.website || "",
-
-    raw: apiCompany
-  };
-}
-
-// ========= rendering =========
-function renderCompaniesTable(data) {
-  const tbody = $("#companies-table");
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-  const frag = document.createDocumentFragment();
-
-  for (const c of data) {
-    const tr = document.createElement("tr");
-    tr.className = "table-row";
-
-    // checkbox
-    const td0 = document.createElement("td");
-    td0.className = "cell cell--check";
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = selected.has(c.id);
-    cb.addEventListener("change", () => {
-      if (cb.checked) selected.add(c.id);
-      else selected.delete(c.id);
-      updateSelectedUI();
-      renderStatsAll();
-    });
-    td0.appendChild(cb);
-
-    const tdName = document.createElement("td");
-    tdName.className = "cell cell--strong";
-    tdName.textContent = safeText(c.name);
-
-    const tdInn = document.createElement("td");
-    tdInn.className = "cell cell--muted";
-    tdInn.textContent = safeText(c.inn);
-
-    const tdCity = document.createElement("td");
-    tdCity.className = "cell";
-    tdCity.textContent = safeText(c.cityOrAddress);
-
-    const tdOkved = document.createElement("td");
-    tdOkved.className = "cell cell--muted";
-    tdOkved.textContent = safeText(c.okved);
-
-    const tdRev = document.createElement("td");
-    tdRev.className = "cell";
-    tdRev.textContent = `${formatTurnoverRub(c.revenueRub)} ₽`;
-
-    const tdPr = document.createElement("td");
-    tdPr.className = "cell";
-    const pr = document.createElement("span");
-    pr.className = getPriorityClass(c.priority);
-    pr.textContent = c.priority;
-    tdPr.appendChild(pr);
-
-    const tdPhone = document.createElement("td");
-    tdPhone.className = "cell";
-    tdPhone.textContent = c.phone || "-";
-
-    const tdEmail = document.createElement("td");
-    tdEmail.className = "cell cell--link";
-    tdEmail.textContent = c.email || "-";
-
-    const tdContact = document.createElement("td");
-    tdContact.className = "cell";
-    tdContact.textContent = c.contact || "-";
-
-    const tdAct = document.createElement("td");
-    tdAct.className = "cell cell--actions";
-    const btn = document.createElement("button");
-    btn.className = "btn btn--link btn--tiny";
-    btn.type = "button";
-    btn.textContent = "Детали";
-    btn.addEventListener("click", () => openDetails(c));
-    tdAct.appendChild(btn);
-
-    tr.appendChild(td0);
-    tr.appendChild(tdName);
-    tr.appendChild(tdInn);
-    tr.appendChild(tdCity);
-    tr.appendChild(tdOkved);
-    tr.appendChild(tdRev);
-    tr.appendChild(tdPr);
-    tr.appendChild(tdPhone);
-    tr.appendChild(tdEmail);
-    tr.appendChild(tdContact);
-    tr.appendChild(tdAct);
-
-    frag.appendChild(tr);
-  }
-
-  tbody.appendChild(frag);
-
-  const countEl = $("#companies-count");
-  if (countEl) countEl.textContent = `Показано ${data.length} из ${companies.length} компаний`;
-}
-
-function renderRecent() {
-  const tbody = $("#recent-table");
-  if (!tbody) return;
-  const slice = companies.slice(0, 5);
-
-  tbody.innerHTML = slice.map(c => `
-    <tr class="table-row">
-      <td class="cell cell--strong">${escapeHtml(c.name)}</td>
-      <td class="cell cell--muted">${escapeHtml(c.cityOrAddress)}</td>
-      <td class="cell cell--muted">${escapeHtml(c.okved)}</td>
-      <td class="cell">${escapeHtml(formatTurnoverRub(c.revenueRub))} ₽</td>
-      <td class="cell"><span class="${getPriorityClass(c.priority)}">${c.priority}</span></td>
-      <td class="cell">${escapeHtml(c.contact || "-")}</td>
-    </tr>
-  `).join("");
-}
-
-function renderStatsAll() {
-  const total = companies.length;
-  const a = companies.filter(x => x.priority === "A").length;
-  const b = companies.filter(x => x.priority === "B").length;
-  const c = companies.filter(x => x.priority === "C").length;
-
-  const contact = companies.filter(x => x.contact && x.contact !== "-").length;
-
-  setText("#stat-total", total);
-  setText("#stat-a", a);
-  setText("#stat-b", b);
-  setText("#stat-c", c);
-  setText("#stat-contact", contact);
-
-  setText("#metric-found", total);
-  setText("#metric-selected", selected.size);
-  setText("#metric-email", companies.filter(x => x.email).length);
-  setText("#metric-phone", companies.filter(x => x.phone).length);
-
-  // bars
-  const ringWrap = $("#ring-stats");
-  if (ringWrap) {
-    const ringData = [1,2,3,4,5].map(r => ({
-      ring: r,
-      count: companies.filter(x => x.ring === r).length
-    }));
-
-    ringWrap.innerHTML = ringData.map(r => `
-      <div class="bar-row">
-        <span class="bar-row__label">
-          <span class="dot ${ringColorClass(r.ring)}"></span>
-          <span>Кольцо ${r.ring}</span>
-        </span>
-        <span class="bar">
-          <span class="bar__fill ${ringColorClass(r.ring)}" style="width:${total ? (r.count / total) * 100 : 0}%"></span>
-        </span>
-        <span class="bar-row__value">${r.count}</span>
-      </div>
-    `).join("");
-  }
-
-  const prioWrap = $("#priority-stats");
-  if (prioWrap) {
-    const prioData = ["A","B","C"].map(p => ({
-      p,
-      count: companies.filter(x => x.priority === p).length
-    }));
-
-    prioWrap.innerHTML = prioData.map(x => `
-      <div class="bar-row">
-        <span class="bar-row__label">
-          <span class="${getPriorityClass(x.p)}">${x.p}</span>
-        </span>
-        <span class="bar">
-          <span class="bar__fill ${x.p === "A" ? "ring-color--1" : x.p === "B" ? "ring-color--3" : "ring-color--0"}"
-                style="width:${total ? (x.count / total) * 100 : 0}%"></span>
-        </span>
-        <span class="bar-row__value">${x.count}</span>
-      </div>
-    `).join("");
-  }
-}
-
-function setText(sel, value) {
-  const el = $(sel);
-  if (el) el.textContent = String(value);
-}
-
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-// ========= filters =========
-function applyFilters() {
-  const q = ($("#filter-search")?.value || "").trim().toLowerCase();
-  const region = $("#filter-region")?.value || "";
-  const ring = $("#filter-ring")?.value || "";
-  const priority = $("#filter-priority")?.value || "";
-  const okved = $("#filter-okved")?.value || "";
-  const contacts = $("#filter-contacts")?.value || "";
-
-  filteredCompanies = companies.filter(c => {
-    if (q) {
-      const hay = `${c.name} ${c.inn}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (region) {
-      // у нас "cityOrAddress" — берём contains
-      if (!c.cityOrAddress.toLowerCase().includes(region.toLowerCase())) return false;
-    }
-    if (ring && String(c.ring) !== String(ring)) return false;
-    if (priority && c.priority !== priority) return false;
-    if (okved && !String(c.okved || "").startsWith(okved)) return false;
-
-    if (contacts === "phone" && !c.phone) return false;
-    if (contacts === "email" && !c.email) return false;
-    if (contacts === "both" && (!c.phone || !c.email)) return false;
-
+function saveConfig(config) {
+  try {
+    localStorage.setItem('stroiparser_config', JSON.stringify(config));
     return true;
-  });
-
-  renderCompaniesTable(filteredCompanies);
-}
-
-function clearFiltersOnly() {
-  const ids = ["filter-region","filter-ring","filter-priority","filter-okved","filter-contacts"];
-  for (const id of ids) {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  }
-  applyFilters();
-}
-
-// ========= selection =========
-function updateSelectedUI() {
-  setText("#selected-count", `Выбрано: ${selected.size}`);
-  setText("#metric-selected", selected.size);
-
-  const tg = $("#tg-selected-hint");
-  const em = $("#email-selected-hint");
-  const pr = $("#pricelist-selected-hint");
-  if (tg) tg.textContent = `Выбрано: ${selected.size}`;
-  if (em) em.textContent = `Выбрано: ${selected.size}`;
-  if (pr) pr.textContent = `Выбрано: ${selected.size}`;
-}
-
-function selectAllFiltered(checked) {
-  if (checked) {
-    for (const c of filteredCompanies) selected.add(c.id);
-  } else {
-    for (const c of filteredCompanies) selected.delete(c.id);
-  }
-  updateSelectedUI();
-  renderCompaniesTable(filteredCompanies);
-  renderStatsAll();
-}
-
-function selectAllAll() {
-  for (const c of companies) selected.add(c.id);
-  updateSelectedUI();
-  applyFilters();
-  renderStatsAll();
-}
-
-function clearSelection() {
-  selected.clear();
-  const cb = $("#select-all-cb");
-  if (cb) cb.checked = false;
-  updateSelectedUI();
-  applyFilters();
-  renderStatsAll();
-}
-
-// ========= actions: search/rings/enrich/export =========
-async function runRing(ringNum) {
-  if (isLoading) return;
-  const r = config.rings[ringNum];
-  const region = ($("#filter-region")?.value || "Самара").trim() || "Самара";
-  const max = Number(r?.max) || Number(config.defaultMax) || 20;
-
-  // Важно: формируем “человеческий” запрос как раньше, но уже из настроек
-  const query = `Найди ${max} компаний в кольце ${ringNum} (${r.fromKm}-${r.toKm}км) в ${region}`;
-
-  await runSearchQuery(query, max, ringNum);
-}
-
-async function runTextSearch() {
-  if (isLoading) return;
-
-  const raw = ($("#filter-search")?.value || "").trim();
-  if (!raw) {
-    toast("Введите запрос");
-    return;
-  }
-
-  // Если выбрали регион/кольцо — добавим к запросу, чтобы AI точнее
-  const region = ($("#filter-region")?.value || "").trim();
-  const ring = ($("#filter-ring")?.value || "").trim();
-
-  let query = raw;
-  if (region) query += `. Регион: ${region}.`;
-  if (ring) {
-    const rr = config.rings[ring];
-    if (rr) query += ` Кольцо: ${ring} (${rr.fromKm}-${rr.toKm}км).`;
-  }
-
-  await runSearchQuery(query, Number(config.defaultMax) || 20, ring ? Number(ring) : 0);
-}
-
-async function runSearchQuery(query, max, ringNumForMap) {
-  setLoading(true, "Запрос к API…");
-  try {
-    const data = await apiSearch(query, max);
-    const list = Array.isArray(data.companies) ? data.companies : [];
-
-    companies = list.map((c, i) => mapCompany(c, ringNumForMap, i));
-    filteredCompanies = companies.slice();
-
-    // если запрос был по кольцу — проставим ring всем
-    if (ringNumForMap) {
-      for (const c of companies) c.ring = Number(ringNumForMap);
-    }
-
-    // после обновления данных выбор сбрасываем (чтобы не “плыли” id)
-    selected.clear();
-    const cb = $("#select-all-cb");
-    if (cb) cb.checked = false;
-
-    applyFilters();
-    renderRecent();
-    renderStatsAll();
-    updateSelectedUI();
-
-    setView("database");
-    toast(`Готово: ${companies.length} компаний`);
-  } catch (e) {
-    toast(`Ошибка: ${e.message}`);
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function enrichSelected() {
-  if (isLoading) return;
-
-  const ids = Array.from(selected);
-  if (ids.length === 0) {
-    toast("Ничего не выбрано");
-    return;
-  }
-
-  const innList = ids
-    .map(id => companies.find(c => c.id === id))
-    .filter(Boolean)
-    .map(c => c.inn)
-    .filter(inn => inn && inn !== "—");
-
-  if (innList.length === 0) {
-    toast("У выбранных нет ИНН");
-    return;
-  }
-
-  setLoading(true, "Enrich…");
-  try {
-    const enriched = await apiEnrich(innList);
-
-    // ожидаем { companies: [...] } или просто массив — на всякий случай
-    const list = Array.isArray(enriched) ? enriched : (Array.isArray(enriched.companies) ? enriched.companies : []);
-    const byInn = new Map(list.map(x => [String(x.inn || ""), x]));
-
-    companies = companies.map(c => {
-      const upd = byInn.get(String(c.inn || ""));
-      if (!upd) return c;
-
-      const merged = mapCompany(upd, c.ring, 0);
-      merged.id = c.id; // сохраняем id, чтобы не потерять selection
-      merged.ring = c.ring;
-      return merged;
-    });
-
-    applyFilters();
-    renderRecent();
-    renderStatsAll();
-    updateSelectedUI();
-    toast("Enrich выполнен");
-  } catch (e) {
-    toast(`Enrich ошибка: ${e.message}`);
-  } finally {
-    setLoading(false);
-  }
-}
-
-function exportCsv() {
-  const rows = [
-    ["name","inn","ring","cityOrAddress","okved","revenueRub","priority","phone","email","contact","site"]
-  ];
-
-  for (const c of companies) {
-    rows.push([
-      c.name, c.inn, String(c.ring),
-      c.cityOrAddress, c.okved,
-      String(c.revenueRub),
-      c.priority,
-      c.phone, c.email, c.contact, c.site
-    ]);
-  }
-
-  const csv = rows.map(r => r.map(cell => {
-    const s = String(cell ?? "");
-    // csv-escaping
-    if (/[",\n;]/.test(s)) return `"${s.replaceAll('"', '""')}"`;
-    return s;
-  }).join(";")).join("\n");
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `companies_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-
-  toast("CSV скачан");
-}
-
-// ========= payload generators =========
-function getSelectedCompanies() {
-  return companies.filter(c => selected.has(c.id));
-}
-
-async function copyJson(obj) {
-  const text = JSON.stringify(obj, null, 2);
-  await navigator.clipboard.writeText(text);
-  toast("Скопировано в буфер");
-}
-
-async function telegramCopy() {
-  const list = getSelectedCompanies();
-  if (list.length === 0) return toast("Ничего не выбрано");
-
-  const text = ($("#tg-text")?.value || "").trim();
-  const personalize = Boolean($("#tg-personalize")?.checked);
-
-  const payload = {
-    channel: "telegram",
-    message_template: text,
-    personalize,
-    recipients: list.map(c => ({
-      inn: c.inn,
-      name: c.name,
-      contact: c.contact,
-      phone: c.phone,
-      email: c.email,
-      site: c.site
-    }))
-  };
-
-  await copyJson(payload);
-}
-
-async function emailCopy() {
-  const list = getSelectedCompanies();
-  if (list.length === 0) return toast("Ничего не выбрано");
-
-  const subject = ($("#email-subject")?.value || "").trim();
-  const body = ($("#email-text")?.value || "").trim();
-
-  const payload = {
-    channel: "email",
-    subject,
-    body_template: body,
-    recipients: list.map(c => ({
-      inn: c.inn,
-      name: c.name,
-      email: c.email,
-      contact: c.contact
-    }))
-  };
-
-  await copyJson(payload);
-}
-
-async function pricelistCopy() {
-  const list = getSelectedCompanies();
-  if (list.length === 0) return toast("Ничего не выбрано");
-
-  const type = ($("#pricelist-type")?.value || "general").trim();
-  const note = ($("#pricelist-note")?.value || "").trim();
-
-  const payload = {
-    action: "send_pricelist",
-    pricelist_type: type,
-    note,
-    recipients: list.map(c => ({
-      inn: c.inn,
-      name: c.name,
-      email: c.email,
-      phone: c.phone,
-      contact: c.contact
-    }))
-  };
-
-  await copyJson(payload);
-}
-
-// ========= modals =========
-function openSettings() {
-  buildRingSettingsUI();
-
-  $("#cfg-api-url").value = config.apiUrl;
-  $("#cfg-default-max").value = String(config.defaultMax);
-  $("#cfg-enrich").value = String(Boolean(config.enrichWithRusprofile));
-
-  $("#cfg-a-min").value = String(config.priority.aMinM);
-  $("#cfg-b-min").value = String(config.priority.bMinM);
-
-  $("#settings-modal").classList.remove("is-hidden");
-}
-
-function closeSettings() {
-  $("#settings-modal").classList.add("is-hidden");
-}
-
-function buildRingSettingsUI() {
-  const wrap = $("#ring-settings");
-  wrap.innerHTML = "";
-
-  for (let i = 1; i <= 5; i++) {
-    const r = config.rings[i];
-
-    const box = document.createElement("div");
-    box.className = "ring-row";
-    box.innerHTML = `
-      <p class="ring-row__title">Кольцо ${i}</p>
-      <div class="ring-row__grid">
-        <div class="field">
-          <label>От</label>
-          <input type="text" data-ring-field="fromKm" data-ring="${i}" value="${r.fromKm}">
-        </div>
-        <div class="field">
-          <label>До</label>
-          <input type="text" data-ring-field="toKm" data-ring="${i}" value="${r.toKm}">
-        </div>
-        <div class="field">
-          <label>Кол-во</label>
-          <input type="text" data-ring-field="max" data-ring="${i}" value="${r.max}">
-        </div>
-      </div>
-    `;
-    wrap.appendChild(box);
+  } catch (error) {
+    console.error('Error saving config:', error);
+    return false;
   }
 }
 
 function resetConfig() {
-  config = structuredClone(DEFAULT_CONFIG);
-  saveConfig();
-  applyConfigLabels();
-  toast("Сброшено");
-  openSettings();
+  localStorage.removeItem('stroiparser_config');
+  return DEFAULT_CONFIG;
 }
 
-function saveConfigFromUI() {
-  const apiUrl = $("#cfg-api-url").value.trim();
-  const defMax = Number($("#cfg-default-max").value.trim()) || 20;
-  const enrich = $("#cfg-enrich").value === "true";
+function validateConfig(config) {
+  const errors = [];
 
-  const aMinM = Number($("#cfg-a-min").value.trim()) || 100;
-  const bMinM = Number($("#cfg-b-min").value.trim()) || 10;
+  if (!config.apiUrl) {
+    errors.push('API URL обязателен');
+  } else if (!config.apiUrl.startsWith('http')) {
+    errors.push('API URL должен начинаться с http:// или https://');
+  }
 
-  config.apiUrl = apiUrl || DEFAULT_CONFIG.apiUrl;
-  config.defaultMax = defMax;
-  config.enrichWithRusprofile = enrich;
-  config.priority.aMinM = aMinM;
-  config.priority.bMinM = bMinM;
+  if (config.priorityA <= config.priorityB) {
+    errors.push('Порог A должен быть больше порога B');
+  }
 
-  $all("[data-ring-field]").forEach(inp => {
-    const ring = Number(inp.dataset.ring);
-    const field = inp.dataset.ringField;
-    const val = Number(inp.value.trim());
+  if (config.defaultMaxCompanies < 1 || config.defaultMaxCompanies > 100) {
+    errors.push('Количество компаний должно быть от 1 до 100');
+  }
 
-    if (!config.rings[ring]) return;
-    if (Number.isFinite(val)) config.rings[ring][field] = val;
+  return errors;
+}
+
+// ============================================
+// 2. STATE MANAGEMENT
+// ============================================
+
+const state = {
+  companies: [],
+  selectedIds: new Set(),
+  currentView: 'dashboard',
+  filters: {
+    search: '',
+    region: '',
+    ring: '',
+    priority: '',
+    okved: '',
+    contacts: ''
+  },
+  lastSearchQuery: '',
+  isLoading: false,
+  config: null
+};
+
+function addCompanies(newCompanies) {
+  newCompanies.forEach(newCompany => {
+    const existingIndex = state.companies.findIndex(c => c.inn === newCompany.inn);
+    if (existingIndex >= 0) {
+      state.companies[existingIndex] = { ...state.companies[existingIndex], ...newCompany };
+    } else {
+      state.companies.push(newCompany);
+    }
   });
+}
 
-  saveConfig();
-  applyConfigLabels();
-  toast("Сохранено");
-  closeSettings();
+function getCompanyByInn(inn) {
+  return state.companies.find(c => c.inn === inn);
+}
 
-  // пересчитать приоритеты если уже есть данные
-  if (companies.length) {
-    companies = companies.map(c => {
-      const pr = priorityFromRevenue(c.revenueRub);
-      return { ...c, priority: pr };
+function getSelectedCompanies() {
+  return state.companies.filter(c => state.selectedIds.has(c.inn));
+}
+
+function getFilteredCompanies() {
+  let filtered = [...state.companies];
+
+  if (state.filters.region) {
+    filtered = filtered.filter(c =>
+      c.region?.includes(state.filters.region) ||
+      c.legal_address?.includes(state.filters.region)
+    );
+  }
+
+  if (state.filters.ring) {
+    filtered = filtered.filter(c => c.ring === parseInt(state.filters.ring));
+  }
+
+  if (state.filters.priority) {
+    filtered = filtered.filter(c => c.priority === state.filters.priority);
+  }
+
+  if (state.filters.okved) {
+    filtered = filtered.filter(c =>
+      c.okved_main?.startsWith(state.filters.okved)
+    );
+  }
+
+  if (state.filters.contacts === 'phone') {
+    filtered = filtered.filter(c => c.phones?.length > 0);
+  } else if (state.filters.contacts === 'email') {
+    filtered = filtered.filter(c => c.emails?.length > 0);
+  } else if (state.filters.contacts === 'both') {
+    filtered = filtered.filter(c =>
+      c.phones?.length > 0 && c.emails?.length > 0
+    );
+  }
+
+  return filtered;
+}
+
+function calculatePriority(revenueStr, config) {
+  if (!revenueStr) return 'C';
+
+  const numStr = revenueStr.replace(/[^0-9]/g, '');
+  if (!numStr) return 'C';
+
+  const millions = parseFloat(numStr) / 1000000;
+
+  if (millions > config.priorityA) return 'A';
+  if (millions >= config.priorityB) return 'B';
+  return 'C';
+}
+
+function processCompanyData(company, config) {
+  company.priority = calculatePriority(company.revenue, config);
+
+  if (!company.region && company.legal_address) {
+    const addressParts = company.legal_address.split(',');
+    if (addressParts.length > 1) {
+      company.region = addressParts[0].trim();
+    }
+  }
+
+  return company;
+}
+
+// ============================================
+// 3. API CLIENT
+// ============================================
+
+class CompanyFinderAPI {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
+  }
+
+  async request(endpoint, options = {}) {
+    if (!this.baseUrl) {
+      throw new Error('API URL не настроен');
+    }
+
+    const url = `${this.baseUrl}${endpoint}`;
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+
+      if (response.status === 429) {
+        const data = await response.json();
+        const detail = data.detail || '';
+        const waitTime = detail.match(/\d+/)?.[0] || 90;
+        throw new Error(`RATE_LIMIT:${waitTime}`);
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error.name === 'TypeError') {
+        throw new Error('Ошибка сети. Проверьте подключение к интернету');
+      }
+      throw error;
+    }
+  }
+
+  async search(query, enrichWithRusprofile = true, maxCompanies = 10) {
+    return await this.request('/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        query,
+        enrich_with_rusprofile: enrichWithRusprofile,
+        max_companies: maxCompanies
+      })
     });
-    applyFilters();
-    renderRecent();
-    renderStatsAll();
+  }
+
+  async enrich(innList) {
+    return await this.request('/enrich', {
+      method: 'POST',
+      body: JSON.stringify(innList)
+    });
+  }
+
+  async healthCheck() {
+    return await this.request('/health');
   }
 }
 
-function openDetails(company) {
-  const modal = $("#details-modal");
-  const pre = $("#details-pre");
-  pre.textContent = JSON.stringify(company.raw || company, null, 2);
-  modal.classList.remove("is-hidden");
-}
-function closeDetails() {
-  $("#details-modal").classList.add("is-hidden");
+// Global API instance
+let API = null;
+
+// ============================================
+// 4. UI UTILITIES
+// ============================================
+
+function showLoading(text = 'Загрузка...') {
+  const indicator = document.getElementById('running-indicator');
+  if (indicator) {
+    indicator.textContent = text;
+    indicator.style.display = 'inline-block';
+  }
+  state.isLoading = true;
 }
 
-// ========= init =========
-function bindUI() {
-  // date
-  const d = $("#today-date");
-  if (d) d.textContent = formatDateRu(new Date());
+function hideLoading() {
+  const indicator = document.getElementById('running-indicator');
+  if (indicator) {
+    indicator.style.display = 'none';
+  }
+  state.isLoading = false;
+}
 
-  // nav buttons
-  $all("[data-nav]").forEach(btn => {
-    btn.addEventListener("click", () => setView(btn.dataset.nav));
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.textContent = message;
+
+  document.body.appendChild(toast);
+
+  setTimeout(() => toast.classList.add('toast--visible'), 10);
+
+  setTimeout(() => {
+    toast.classList.remove('toast--visible');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function openModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove('is-hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add('is-hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    return navigator.clipboard.writeText(text);
+  } else {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return success ? Promise.resolve() : Promise.reject(new Error('Copy failed'));
+  }
+}
+
+// ============================================
+// 5. NAVIGATION & VIEW MANAGEMENT
+// ============================================
+
+function switchView(viewName) {
+  document.querySelectorAll('.view').forEach(view => {
+    view.classList.remove('is-active');
   });
 
-  // ring buttons
-  $all("[data-ring]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const ringNum = Number(btn.dataset.ring);
-      await runRing(ringNum);
+  const targetView = document.getElementById(`view-${viewName}`);
+  if (targetView) {
+    targetView.classList.add('is-active');
+  }
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('nav-item--active');
+    if (item.dataset.nav === viewName) {
+      item.classList.add('nav-item--active');
+    }
+  });
+
+  const titles = {
+    dashboard: 'Панель управления',
+    database: 'База клиентов',
+    telegram: 'Telegram-рассылка',
+    email: 'Email-рассылка',
+    pricelist: 'Прайс-листы',
+    stats: 'Статистика'
+  };
+
+  const titleElement = document.getElementById('page-title');
+  if (titleElement) {
+    titleElement.textContent = titles[viewName] || viewName;
+  }
+
+  state.currentView = viewName;
+
+  if (viewName === 'stats') {
+    renderStatistics();
+  } else if (['telegram', 'email', 'pricelist'].includes(viewName)) {
+    updateSelectedHints();
+  } else if (viewName === 'dashboard') {
+    updateDashboardStats();
+    renderRecentTable();
+  }
+}
+
+function updateRingLabels(config) {
+  config.rings.forEach(ring => {
+    const ringBtn = document.querySelector(`.tool-item[data-ring="${ring.id}"]`);
+    if (ringBtn) {
+      const count = state.companies.filter(c => c.ring === ring.id).length;
+      const labelSpan = ringBtn.querySelector('.tool-item__label');
+      if (labelSpan) {
+        labelSpan.textContent = count > 0 ? `${ring.label} (${count})` : ring.label;
+      }
+    }
+  });
+}
+
+// ============================================
+// 6. TABLE RENDERING
+// ============================================
+
+function renderCompaniesTable() {
+  const filtered = getFilteredCompanies();
+  const tbody = document.getElementById('companies-table');
+
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="11" style="text-align: center; padding: 40px; color: var(--text-muted);">
+          Компании не найдены. Попробуйте изменить фильтры или выполнить поиск.
+        </td>
+      </tr>
+    `;
+    updateTableFooter(0);
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(company => renderTableRow(company)).join('');
+  updateTableFooter(filtered.length);
+  updateSelectionUI();
+}
+
+function renderTableRow(company) {
+  const hasContact = (company.phones?.length > 0) || (company.emails?.length > 0);
+  const contactIcon = hasContact ? '✓' : '—';
+
+  return `
+    <tr class="table-row" data-inn="${company.inn || ''}">
+      <td class="cell--check">
+        <input type="checkbox" class="company-checkbox" data-inn="${company.inn || ''}" ${state.selectedIds.has(company.inn) ? 'checked' : ''}>
+      </td>
+      <td class="cell--strong">${company.short_name || company.full_name || '—'}</td>
+      <td class="cell--muted">${company.inn || '—'}</td>
+      <td class="cell--muted">${company.legal_address || '—'}</td>
+      <td>${company.okved_main ? `${company.okved_main} - ${company.okved_main_name || ''}` : '—'}</td>
+      <td class="cell--strong">${company.revenue || '—'}</td>
+      <td>
+        <span class="priority priority--${(company.priority || 'c').toLowerCase()}">${company.priority || 'C'}</span>
+      </td>
+      <td class="cell--link">${company.phones?.[0] || '—'}</td>
+      <td class="cell--link">${company.emails?.[0] || '—'}</td>
+      <td class="cell--muted">${contactIcon}</td>
+      <td class="cell--actions">
+        <button class="btn btn--tiny btn--ghost btn-details" data-inn="${company.inn || ''}">
+          Детали
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+function updateTableFooter(count) {
+  const countElement = document.getElementById('companies-count');
+  if (countElement) {
+    countElement.textContent = `Показано ${count} компаний`;
+  }
+
+  const selectedElement = document.getElementById('selected-count');
+  if (selectedElement) {
+    selectedElement.textContent = `Выбрано: ${state.selectedIds.size}`;
+  }
+}
+
+function renderRecentTable() {
+  const recentTable = document.getElementById('recent-table');
+  if (!recentTable) return;
+
+  const recent = state.companies.slice(-5).reverse();
+
+  if (recent.length === 0) {
+    recentTable.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 20px; color: var(--text-muted);">
+          Нет данных
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  recentTable.innerHTML = recent.map(company => `
+    <tr class="table-row">
+      <td class="cell--strong">${company.short_name || company.full_name || '—'}</td>
+      <td class="cell--muted">${company.inn || '—'}</td>
+      <td>${company.region || '—'}</td>
+      <td class="cell--strong">${company.revenue || '—'}</td>
+      <td>
+        <span class="priority priority--${(company.priority || 'c').toLowerCase()}">${company.priority || 'C'}</span>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ============================================
+// 7. SELECTION MANAGEMENT
+// ============================================
+
+function handleCheckboxChange(checkbox) {
+  const inn = checkbox.dataset.inn;
+  if (checkbox.checked) {
+    state.selectedIds.add(inn);
+  } else {
+    state.selectedIds.delete(inn);
+  }
+  updateSelectionUI();
+  updateDashboardStats();
+}
+
+function handleSelectAll(e) {
+  const filtered = getFilteredCompanies();
+  if (e.target.checked) {
+    filtered.forEach(c => state.selectedIds.add(c.inn));
+  } else {
+    filtered.forEach(c => state.selectedIds.delete(c.inn));
+  }
+  updateSelectionUI();
+}
+
+function handleSelectAllButton() {
+  const filtered = getFilteredCompanies();
+  filtered.forEach(c => state.selectedIds.add(c.inn));
+  updateSelectionUI();
+  renderCompaniesTable();
+}
+
+function clearSelection() {
+  state.selectedIds.clear();
+  updateSelectionUI();
+  renderCompaniesTable();
+}
+
+function updateSelectionUI() {
+  document.querySelectorAll('.company-checkbox').forEach(cb => {
+    cb.checked = state.selectedIds.has(cb.dataset.inn);
+  });
+
+  const metricElement = document.getElementById('metric-selected');
+  if (metricElement) {
+    metricElement.textContent = state.selectedIds.size;
+  }
+
+  updateTableFooter(getFilteredCompanies().length);
+}
+
+// ============================================
+// 8. SEARCH & ENRICHMENT
+// ============================================
+
+async function handleSearch() {
+  const searchInput = document.getElementById('filter-search');
+  if (!searchInput) return;
+
+  const query = searchInput.value.trim();
+
+  if (!query) {
+    showToast('Введите поисковый запрос', 'error');
+    searchInput.focus();
+    return;
+  }
+
+  if (query.length < 3) {
+    showToast('Запрос слишком короткий (минимум 3 символа)', 'error');
+    return;
+  }
+
+  const config = loadConfig();
+
+  if (!config.apiUrl) {
+    showToast('API URL не настроен. Откройте Настройки', 'error');
+    setTimeout(() => openModal('settings-modal'), 500);
+    return;
+  }
+
+  try {
+    showLoading('Поиск компаний...');
+
+    const result = await API.search(
+      query,
+      config.enrichRusprofile,
+      config.defaultMaxCompanies
+    );
+
+    if (!result.success) {
+      throw new Error(result.error || 'Ошибка поиска');
+    }
+
+    if (result.count === 0) {
+      showToast('Компании не найдены. Попробуйте изменить запрос', 'info');
+      hideLoading();
+      return;
+    }
+
+    const processedCompanies = result.companies.map(c => processCompanyData(c, config));
+    addCompanies(processedCompanies);
+
+    state.lastSearchQuery = query;
+
+    renderCompaniesTable();
+    updateDashboardStats();
+    updateRingLabels(config);
+
+    showToast(`Найдено ${result.count} компаний`, 'success');
+    hideLoading();
+
+  } catch (error) {
+    hideLoading();
+
+    if (error.message.startsWith('RATE_LIMIT:')) {
+      const waitTime = error.message.split(':')[1];
+      showToast(`Превышен лимит запросов. Подождите ${waitTime} секунд`, 'warning');
+    } else {
+      showToast(`Ошибка: ${error.message}`, 'error');
+    }
+
+    console.error('Search error:', error);
+  }
+}
+
+async function handleEnrich() {
+  if (state.selectedIds.size === 0) {
+    showToast('Выберите хотя бы одну компанию', 'error');
+    return;
+  }
+
+  const config = loadConfig();
+
+  if (!config.apiUrl) {
+    showToast('API URL не настроен', 'error');
+    return;
+  }
+
+  try {
+    showLoading('Обогащение данных...');
+
+    const innList = Array.from(state.selectedIds);
+    const result = await API.enrich(innList);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Ошибка обогащения');
+    }
+
+    const processedCompanies = result.companies.map(c => processCompanyData(c, config));
+    addCompanies(processedCompanies);
+
+    renderCompaniesTable();
+    updateDashboardStats();
+
+    const failed = innList.length - result.count;
+    if (failed > 0) {
+      showToast(
+        `Обогащено ${result.count} из ${innList.length} компаний. ${failed} не найдено`,
+        'warning'
+      );
+    } else {
+      showToast(`Обогащено ${result.count} компаний`, 'success');
+    }
+
+    hideLoading();
+
+  } catch (error) {
+    hideLoading();
+    showToast(`Ошибка: ${error.message}`, 'error');
+    console.error('Enrich error:', error);
+  }
+}
+
+async function handleRingSearch(ringId) {
+  const config = loadConfig();
+  const ring = config.rings.find(r => r.id === ringId);
+
+  if (!ring) return;
+
+  const query = `Find ${ring.maxCompanies} construction companies within ${ring.minKm}-${ring.maxKm}km from Samara`;
+
+  try {
+    showLoading(`Поиск компаний: ${ring.label}...`);
+
+    const result = await API.search(query, config.enrichRusprofile, ring.maxCompanies);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Ошибка поиска');
+    }
+
+    const processedCompanies = result.companies.map(c => {
+      c.ring = ring.id;
+      return processCompanyData(c, config);
+    });
+
+    addCompanies(processedCompanies);
+
+    renderCompaniesTable();
+    updateDashboardStats();
+    updateRingLabels(config);
+
+    showToast(`${ring.label}: найдено ${result.count} компаний`, 'success');
+    hideLoading();
+
+    switchView('database');
+
+  } catch (error) {
+    hideLoading();
+
+    if (error.message.startsWith('RATE_LIMIT:')) {
+      const waitTime = error.message.split(':')[1];
+      showToast(`Превышен лимит запросов. Подождите ${waitTime} секунд`, 'warning');
+    } else {
+      showToast(`Ошибка: ${error.message}`, 'error');
+    }
+
+    console.error('Ring search error:', error);
+  }
+}
+
+// ============================================
+// 9. FILTERING
+// ============================================
+
+function applyFilters() {
+  renderCompaniesTable();
+}
+
+function clearFilters() {
+  state.filters = {
+    search: '',
+    region: '',
+    ring: '',
+    priority: '',
+    okved: '',
+    contacts: ''
+  };
+
+  ['filter-region', 'filter-ring', 'filter-priority', 'filter-okved', 'filter-contacts'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) element.value = '';
+  });
+
+  renderCompaniesTable();
+  showToast('Фильтры очищены', 'info');
+}
+
+// ============================================
+// 10. STATISTICS
+// ============================================
+
+function calculateStatistics() {
+  const companies = state.companies;
+  const config = loadConfig();
+
+  const ringStats = config.rings.map(ring => {
+    const count = companies.filter(c => c.ring === ring.id).length;
+    return {
+      label: ring.label,
+      count: count,
+      maxCompanies: ring.maxCompanies,
+      percentage: ring.maxCompanies > 0 ? (count / ring.maxCompanies) * 100 : 0,
+      color: ring.color
+    };
+  });
+
+  const priorityStats = ['A', 'B', 'C'].map(priority => {
+    const count = companies.filter(c => c.priority === priority).length;
+    return {
+      priority: priority,
+      count: count,
+      percentage: companies.length > 0 ? (count / companies.length) * 100 : 0
+    };
+  });
+
+  return { ringStats, priorityStats };
+}
+
+function renderStatistics() {
+  const { ringStats, priorityStats } = calculateStatistics();
+
+  const ringStatsElement = document.getElementById('ring-stats');
+  if (ringStatsElement) {
+    ringStatsElement.innerHTML = ringStats.map(stat => `
+      <div class="bar-row">
+        <div class="bar-row__label">
+          <span class="dot ring-color--${stat.color}"></span>
+          <span>${stat.label}</span>
+        </div>
+        <div class="bar">
+          <span class="bar__fill ring-color--${stat.color}"
+                style="width: ${Math.min(stat.percentage, 100)}%"></span>
+        </div>
+        <div class="bar-row__value">${stat.count}</div>
+      </div>
+    `).join('');
+  }
+
+  const priorityStatsElement = document.getElementById('priority-stats');
+  if (priorityStatsElement) {
+    priorityStatsElement.innerHTML = priorityStats.map(stat => `
+      <div class="bar-row">
+        <div class="bar-row__label">
+          <span class="priority priority--${stat.priority.toLowerCase()}">${stat.priority}</span>
+        </div>
+        <div class="bar">
+          <span class="bar__fill priority--${stat.priority.toLowerCase()}"
+                style="width: ${Math.min(stat.percentage, 100)}%"></span>
+        </div>
+        <div class="bar-row__value">${stat.count}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function updateDashboardStats() {
+  const total = state.companies.length;
+  const priorityA = state.companies.filter(c => c.priority === 'A').length;
+  const priorityB = state.companies.filter(c => c.priority === 'B').length;
+  const priorityC = state.companies.filter(c => c.priority === 'C').length;
+  const withContact = state.companies.filter(c =>
+    (c.phones?.length > 0) || (c.emails?.length > 0)
+  ).length;
+
+  const statElements = {
+    'stat-total': total,
+    'stat-a': priorityA,
+    'stat-b': priorityB,
+    'stat-c': priorityC,
+    'stat-contact': withContact
+  };
+
+  Object.entries(statElements).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  });
+
+  const metricElements = {
+    'metric-found': total,
+    'metric-selected': state.selectedIds.size,
+    'metric-email': state.companies.filter(c => c.emails?.length > 0).length,
+    'metric-phone': state.companies.filter(c => c.phones?.length > 0).length
+  };
+
+  Object.entries(metricElements).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  });
+}
+
+// ============================================
+// 11. BROADCAST PAYLOADS
+// ============================================
+
+function updateSelectedHints() {
+  const selected = getSelectedCompanies();
+
+  const tgHint = document.getElementById('tg-selected-hint');
+  if (tgHint) {
+    tgHint.textContent = `Выбрано: ${selected.length} компаний`;
+  }
+
+  const emailHint = document.getElementById('email-selected-hint');
+  if (emailHint) {
+    emailHint.textContent = `Выбрано: ${selected.length} компаний`;
+  }
+
+  const pricelistHint = document.getElementById('pricelist-selected-hint');
+  if (pricelistHint) {
+    pricelistHint.textContent = `Выбрано: ${selected.length} компаний`;
+  }
+}
+
+function generateTelegramPayload() {
+  const selected = getSelectedCompanies();
+  const messageInput = document.getElementById('tg-text');
+  const personalizeCheckbox = document.getElementById('tg-personalize');
+
+  if (!messageInput) return '[]';
+
+  const message = messageInput.value || '';
+  const personalize = personalizeCheckbox ? personalizeCheckbox.checked : false;
+
+  const payload = selected
+    .filter(c => c.phones?.length > 0)
+    .map(company => ({
+      phone: company.phones[0],
+      message: personalize && company.director_name
+        ? `Здравствуйте, ${company.director_name}!\n\n${message}`
+        : message,
+      company_name: company.short_name || company.full_name,
+      inn: company.inn
+    }));
+
+  return JSON.stringify(payload, null, 2);
+}
+
+function generateEmailPayload() {
+  const selected = getSelectedCompanies();
+  const subjectInput = document.getElementById('email-subject');
+  const bodyInput = document.getElementById('email-text');
+
+  if (!subjectInput || !bodyInput) return '[]';
+
+  const subject = subjectInput.value || '';
+  const body = bodyInput.value || '';
+
+  const payload = selected
+    .filter(c => c.emails?.length > 0)
+    .map(company => ({
+      to: company.emails[0],
+      subject: subject,
+      body: body,
+      company: {
+        name: company.short_name || company.full_name,
+        inn: company.inn,
+        director: company.director_name,
+        phone: company.phones?.[0]
+      }
+    }));
+
+  return JSON.stringify(payload, null, 2);
+}
+
+function generatePricelistPayload() {
+  const selected = getSelectedCompanies();
+  const typeSelect = document.getElementById('pricelist-type');
+  const noteInput = document.getElementById('pricelist-note');
+
+  if (!typeSelect || !noteInput) return '{}';
+
+  const type = typeSelect.value || 'general';
+  const note = noteInput.value || '';
+
+  const payload = {
+    type: type,
+    note: note,
+    recipients: selected.map(company => ({
+      company_name: company.short_name || company.full_name,
+      inn: company.inn,
+      email: company.emails?.[0],
+      phone: company.phones?.[0],
+      contact_person: company.director_name
+    }))
+  };
+
+  return JSON.stringify(payload, null, 2);
+}
+
+function handleTelegramPayload() {
+  if (state.selectedIds.size === 0) {
+    showToast('Выберите хотя бы одну компанию', 'error');
+    return;
+  }
+
+  const payload = generateTelegramPayload();
+  const payloadObj = JSON.parse(payload);
+
+  if (payloadObj.length === 0) {
+    showToast('У выбранных компаний нет телефонов', 'warning');
+    return;
+  }
+
+  copyToClipboard(payload)
+    .then(() => showToast(`Payload скопирован (${payloadObj.length} контактов)`, 'success'))
+    .catch(() => showToast('Ошибка копирования', 'error'));
+}
+
+function handleEmailPayload() {
+  if (state.selectedIds.size === 0) {
+    showToast('Выберите хотя бы одну компанию', 'error');
+    return;
+  }
+
+  const payload = generateEmailPayload();
+  const payloadObj = JSON.parse(payload);
+
+  if (payloadObj.length === 0) {
+    showToast('У выбранных компаний нет email', 'warning');
+    return;
+  }
+
+  copyToClipboard(payload)
+    .then(() => showToast(`Payload скопирован (${payloadObj.length} контактов)`, 'success'))
+    .catch(() => showToast('Ошибка копирования', 'error'));
+}
+
+function handlePricelistPayload() {
+  if (state.selectedIds.size === 0) {
+    showToast('Выберите хотя бы одну компанию', 'error');
+    return;
+  }
+
+  const payload = generatePricelistPayload();
+
+  copyToClipboard(payload)
+    .then(() => showToast('Payload скопирован', 'success'))
+    .catch(() => showToast('Ошибка копирования', 'error'));
+}
+
+// ============================================
+// 12. CSV EXPORT
+// ============================================
+
+function exportToCSV() {
+  const companies = getFilteredCompanies();
+
+  if (companies.length === 0) {
+    showToast('Нет данных для экспорта', 'warning');
+    return;
+  }
+
+  const headers = [
+    'INN', 'Название', 'Статус', 'Регион', 'Адрес',
+    'ОКВЭД', 'Оборот', 'Сотрудников', 'Приоритет',
+    'Телефон', 'Email', 'Сайт', 'Директор', 'Дата регистрации'
+  ];
+
+  const rows = companies.map(c => [
+    c.inn || '',
+    c.short_name || c.full_name || '',
+    c.status || '',
+    c.region || '',
+    c.legal_address || '',
+    c.okved_main ? `${c.okved_main} - ${c.okved_main_name || ''}` : '',
+    c.revenue || '',
+    c.employees_count || '',
+    c.priority || '',
+    c.phones?.join('; ') || '',
+    c.emails?.join('; ') || '',
+    c.website || '',
+    c.director_name || '',
+    c.registration_date || ''
+  ]);
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `companies_export_${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+
+  showToast(`Экспортировано ${companies.length} компаний`, 'success');
+}
+
+// ============================================
+// 13. SETTINGS MODAL
+// ============================================
+
+function populateSettingsModal() {
+  const config = loadConfig();
+
+  const apiUrlInput = document.getElementById('cfg-api-url');
+  const defaultMaxInput = document.getElementById('cfg-default-max');
+  const enrichSelect = document.getElementById('cfg-enrich');
+  const priorityAInput = document.getElementById('cfg-a-min');
+  const priorityBInput = document.getElementById('cfg-b-min');
+
+  if (apiUrlInput) apiUrlInput.value = config.apiUrl;
+  if (defaultMaxInput) defaultMaxInput.value = config.defaultMaxCompanies;
+  if (enrichSelect) enrichSelect.value = config.enrichRusprofile.toString();
+  if (priorityAInput) priorityAInput.value = config.priorityA;
+  if (priorityBInput) priorityBInput.value = config.priorityB;
+
+  const ringSettings = document.getElementById('ring-settings');
+  if (ringSettings) {
+    ringSettings.innerHTML = config.rings.map(ring => `
+      <div class="ring-row">
+        <p class="ring-row__title">${ring.label}</p>
+        <div class="ring-row__grid">
+          <div class="field">
+            <label>От (км)</label>
+            <input type="number" data-ring="${ring.id}" data-field="minKm" value="${ring.minKm}">
+          </div>
+          <div class="field">
+            <label>До (км)</label>
+            <input type="number" data-ring="${ring.id}" data-field="maxKm" value="${ring.maxKm}">
+          </div>
+          <div class="field">
+            <label>Макс</label>
+            <input type="number" data-ring="${ring.id}" data-field="maxCompanies" value="${ring.maxCompanies}">
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function handleSaveConfig() {
+  const apiUrlInput = document.getElementById('cfg-api-url');
+  const defaultMaxInput = document.getElementById('cfg-default-max');
+  const enrichSelect = document.getElementById('cfg-enrich');
+  const priorityAInput = document.getElementById('cfg-a-min');
+  const priorityBInput = document.getElementById('cfg-b-min');
+
+  if (!apiUrlInput || !defaultMaxInput || !enrichSelect || !priorityAInput || !priorityBInput) {
+    showToast('Ошибка: не все поля найдены', 'error');
+    return;
+  }
+
+  const config = {
+    apiUrl: apiUrlInput.value.trim(),
+    defaultMaxCompanies: parseInt(defaultMaxInput.value),
+    enrichRusprofile: enrichSelect.value === 'true',
+    priorityA: parseFloat(priorityAInput.value),
+    priorityB: parseFloat(priorityBInput.value),
+    rings: loadConfig().rings
+  };
+
+  document.querySelectorAll('#ring-settings input').forEach(input => {
+    const ringId = parseInt(input.dataset.ring);
+    const field = input.dataset.field;
+    const ring = config.rings.find(r => r.id === ringId);
+    if (ring) {
+      const value = input.value;
+      ring[field] = (field === 'maxCompanies') ? parseInt(value) : parseFloat(value);
+    }
+  });
+
+  const errors = validateConfig(config);
+  if (errors.length > 0) {
+    showToast(`Ошибка: ${errors.join(', ')}`, 'error');
+    return;
+  }
+
+  if (saveConfig(config)) {
+    state.config = config;
+    API = new CompanyFinderAPI(config.apiUrl);
+    updateRingLabels(config);
+    showToast('Настройки сохранены', 'success');
+    closeModal('settings-modal');
+  } else {
+    showToast('Ошибка сохранения настроек', 'error');
+  }
+}
+
+function handleResetConfig() {
+  if (confirm('Сбросить все настройки к значениям по умолчанию?')) {
+    const config = resetConfig();
+    populateSettingsModal();
+    showToast('Настройки сброшены', 'info');
+  }
+}
+
+// ============================================
+// 14. DETAILS MODAL
+// ============================================
+
+function showCompanyDetails(inn) {
+  const company = getCompanyByInn(inn);
+
+  if (!company) {
+    showToast('Компания не найдена', 'error');
+    return;
+  }
+
+  const detailsPre = document.getElementById('details-pre');
+  if (detailsPre) {
+    detailsPre.textContent = JSON.stringify(company, null, 2);
+  }
+
+  openModal('details-modal');
+}
+
+// ============================================
+// 15. EVENT BINDING
+// ============================================
+
+function bindEvents() {
+  const btnSearch = document.getElementById('btn-search');
+  if (btnSearch) {
+    btnSearch.addEventListener('click', handleSearch);
+  }
+
+  const filterSearch = document.getElementById('filter-search');
+  if (filterSearch) {
+    filterSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSearch();
+    });
+  }
+
+  ['filter-region', 'filter-ring', 'filter-priority', 'filter-okved', 'filter-contacts'].forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.addEventListener('change', (e) => {
+        const filterKey = id.replace('filter-', '');
+        state.filters[filterKey] = e.target.value;
+        renderCompaniesTable();
+      });
+    }
+  });
+
+  const btnClearFilters = document.getElementById('btn-clear-filters');
+  if (btnClearFilters) {
+    btnClearFilters.addEventListener('click', clearFilters);
+  }
+
+  const selectAllCb = document.getElementById('select-all-cb');
+  if (selectAllCb) {
+    selectAllCb.addEventListener('change', handleSelectAll);
+  }
+
+  const btnSelectAll = document.getElementById('btn-select-all');
+  if (btnSelectAll) {
+    btnSelectAll.addEventListener('click', handleSelectAllButton);
+  }
+
+  const btnClearSelection = document.getElementById('btn-clear-selection');
+  if (btnClearSelection) {
+    btnClearSelection.addEventListener('click', clearSelection);
+  }
+
+  const btnEnrich = document.getElementById('btn-enrich-selected');
+  if (btnEnrich) {
+    btnEnrich.addEventListener('click', handleEnrich);
+  }
+
+  document.querySelectorAll('.tool-item[data-ring]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const ringId = parseInt(e.currentTarget.dataset.ring);
+      handleRingSearch(ringId);
     });
   });
 
-  // search
-  $("#btn-search").addEventListener("click", runTextSearch);
-  $("#filter-search").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") runTextSearch();
+  const btnTgCopy = document.getElementById('btn-tg-copy');
+  if (btnTgCopy) {
+    btnTgCopy.addEventListener('click', handleTelegramPayload);
+  }
+
+  const btnEmailCopy = document.getElementById('btn-email-copy');
+  if (btnEmailCopy) {
+    btnEmailCopy.addEventListener('click', handleEmailPayload);
+  }
+
+  const btnPricelistCopy = document.getElementById('btn-pricelist-copy');
+  if (btnPricelistCopy) {
+    btnPricelistCopy.addEventListener('click', handlePricelistPayload);
+  }
+
+  const btnExport = document.getElementById('btn-export');
+  if (btnExport) {
+    btnExport.addEventListener('click', exportToCSV);
+  }
+
+  const btnSettings = document.getElementById('btn-settings');
+  if (btnSettings) {
+    btnSettings.addEventListener('click', () => {
+      populateSettingsModal();
+      openModal('settings-modal');
+    });
+  }
+
+  const btnSaveConfig = document.getElementById('btn-save-config');
+  if (btnSaveConfig) {
+    btnSaveConfig.addEventListener('click', handleSaveConfig);
+  }
+
+  const btnResetConfig = document.getElementById('btn-reset-config');
+  if (btnResetConfig) {
+    btnResetConfig.addEventListener('click', handleResetConfig);
+  }
+
+  document.addEventListener('change', (e) => {
+    if (e.target.classList.contains('company-checkbox')) {
+      handleCheckboxChange(e.target);
+    }
   });
 
-  // filters events
-  ["#filter-region","#filter-ring","#filter-priority","#filter-okved","#filter-contacts","#filter-search"]
-    .forEach(sel => $(sel).addEventListener("input", applyFilters));
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('btn-details')) {
+      const inn = e.target.dataset.inn;
+      showCompanyDetails(inn);
+    }
 
-  $("#btn-clear-filters").addEventListener("click", () => {
-    clearFiltersOnly();
-    $("#filter-search").value = "";
-    applyFilters();
+    const navTrigger = e.target.closest('[data-nav]');
+    if (navTrigger) {
+      const viewName = navTrigger.dataset.nav;
+      switchView(viewName);
+    }
   });
 
-  // select all
-  $("#select-all-cb").addEventListener("change", (e) => selectAllFiltered(e.target.checked));
-  $("#btn-select-all").addEventListener("click", () => {
-    selectAllAll();
-    const cb = $("#select-all-cb");
-    if (cb) cb.checked = true;
+  document.querySelectorAll('[data-close-modal]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal('settings-modal'));
   });
 
-  // export
-  $("#btn-export").addEventListener("click", exportCsv);
+  document.querySelectorAll('[data-close-details]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal('details-modal'));
+  });
 
-  // enrich
-  $("#btn-enrich-selected").addEventListener("click", enrichSelected);
-
-  // selection reset
-  $("#btn-clear-selection").addEventListener("click", clearSelection);
-
-  // payload buttons
-  $("#btn-tg-copy").addEventListener("click", telegramCopy);
-  $("#btn-email-copy").addEventListener("click", emailCopy);
-  $("#btn-pricelist-copy").addEventListener("click", pricelistCopy);
-
-  // settings
-  $("#btn-settings").addEventListener("click", openSettings);
-  $("#btn-save-config").addEventListener("click", saveConfigFromUI);
-  $("#btn-reset-config").addEventListener("click", resetConfig);
-  $all("[data-close-modal]").forEach(x => x.addEventListener("click", closeSettings));
-
-  // details modal close
-  $all("[data-close-details]").forEach(x => x.addEventListener("click", closeDetails));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal('settings-modal');
+      closeModal('details-modal');
+    }
+  });
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  applyConfigLabels();
-  bindUI();
-  filteredCompanies = companies.slice();
-  renderCompaniesTable(filteredCompanies);
-  renderRecent();
-  renderStatsAll();
-  updateSelectedUI();
+// ============================================
+// 16. INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('СтройПарсер v2.0 initializing...');
+
+  const config = loadConfig();
+  state.config = config;
+  API = new CompanyFinderAPI(config.apiUrl);
+
+  const todayDate = document.getElementById('today-date');
+  if (todayDate) {
+    todayDate.textContent = new Date().toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  }
+
+  if (config.apiUrl) {
+    try {
+      const health = await API.healthCheck();
+      console.log('API health:', health);
+
+      if (health.status === 'healthy') {
+        showToast('API подключен', 'success');
+      } else {
+        showToast('API доступен, но есть проблемы с конфигурацией', 'warning');
+      }
+    } catch (error) {
+      console.warn('API не доступен:', error);
+      showToast('API не доступен. Проверьте настройки', 'warning');
+    }
+  } else {
+    showToast('Настройте API URL в настройках', 'info');
+    setTimeout(() => openModal('settings-modal'), 1500);
+  }
+
+  updateRingLabels(config);
+  renderCompaniesTable();
+  renderStatistics();
+  updateDashboardStats();
+  renderRecentTable();
+
+  bindEvents();
+
+  console.log('СтройПарсер v2.0 ready!');
 });

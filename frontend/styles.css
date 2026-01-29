@@ -557,8 +557,11 @@ code{
 }
 .ring-settings{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap:12px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 .ring-settings .ring-row{
   border:1px solid var(--gray-200);
@@ -589,15 +592,51 @@ code{
   max-height: 70vh;
 }
 
-.toast{
+/* ============================================
+   Toast Notifications
+   ============================================ */
+.toast {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 60;
-  padding: 10px 12px;
-  border-radius: 999px;
-  background: #111827;
-  color: white;
-  font-size: 12.5px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+  bottom: 24px;
+  right: 24px;
+  min-width: 280px;
+  max-width: 420px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 13.5px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.toast--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.toast--error {
+  border-left: 4px solid var(--red);
+  background: #fff5f5;
+}
+
+.toast--warning {
+  border-left: 4px solid var(--yellow);
+  background: #fffbf0;
+}
+
+.toast--success {
+  border-left: 4px solid var(--green);
+  background: #f0fdf4;
+}
+
+.toast--info {
+  border-left: 4px solid var(--blue);
+  background: #f0f9ff;
 }
