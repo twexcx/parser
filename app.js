@@ -87,7 +87,10 @@ const state = {
   },
   lastSearchQuery: '',
   isLoading: false,
-  config: null
+  config: null,
+  // Authentication state
+  currentUser: null,
+  authToken: null
 };
 
 function addCompanies(newCompanies) {
@@ -243,6 +246,95 @@ class CompanyFinderAPI {
 
 // Global API instance
 let API = null;
+
+// ============================================
+// AUTHENTICATION API
+// ============================================
+
+class AuthAPI {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl ? baseUrl.replace(/\/$/, '') : '';
+  }
+
+  async request(endpoint, options = {}) {
+    if (!this.baseUrl) {
+      throw new Error('API URL не настроен');
+    }
+
+    const url = `${this.baseUrl}${endpoint}`;
+    const token = localStorage.getItem('auth_token');
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      if (error.name === 'TypeError') {
+        throw new Error('Ошибка сети. Проверьте подключение к интернету');
+      }
+      throw error;
+    }
+  }
+
+  async register(firstName, lastName, email, password) {
+    return await this.request('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        password
+      })
+    });
+  }
+
+  async login(email, password) {
+    return await this.request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+  }
+
+  async getCurrentUser() {
+    return await this.request('/auth/me');
+  }
+
+  async changePassword(currentPassword, newPassword) {
+    return await this.request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword
+      })
+    });
+  }
+
+  async logout() {
+    return await this.request('/auth/logout', {
+      method: 'POST'
+    });
+  }
+}
+
+// Global Auth API instance
+let AuthAPIClient = null;
 
 // ============================================
 // 4. UI UTILITIES
@@ -1269,6 +1361,216 @@ function showCompanyDetails(inn) {
 }
 
 // ============================================
+// AUTHENTICATION FUNCTIONS
+// ============================================
+
+function saveAuthToken(token) {
+  localStorage.setItem('auth_token', token);
+  state.authToken = token;
+}
+
+function clearAuthToken() {
+  localStorage.removeItem('auth_token');
+  state.authToken = null;
+}
+
+function getAuthToken() {
+  return localStorage.getItem('auth_token');
+}
+
+function updateUserUI(user) {
+  if (!user) {
+    // Not logged in
+    document.getElementById('user-initials').textContent = '—';
+    document.getElementById('user-name').textContent = 'Гость';
+    document.getElementById('user-email').textContent = 'Войдите в систему';
+    return;
+  }
+
+  // Logged in
+  const initials = `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
+  document.getElementById('user-initials').textContent = initials;
+  document.getElementById('user-name').textContent = `${user.first_name} ${user.last_name}`;
+  document.getElementById('user-email').textContent = user.email;
+
+  // Update dropdown
+  document.getElementById('dropdown-user-name').textContent = `${user.first_name} ${user.last_name}`;
+  document.getElementById('dropdown-user-email').textContent = user.email;
+
+  state.currentUser = user;
+}
+
+async function checkAuthStatus() {
+  const token = getAuthToken();
+
+  if (!token) {
+    updateUserUI(null);
+    openModal('login-modal');
+    return false;
+  }
+
+  try {
+    const user = await AuthAPIClient.getCurrentUser();
+    updateUserUI(user);
+    return true;
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    clearAuthToken();
+    updateUserUI(null);
+    openModal('login-modal');
+    return false;
+  }
+}
+
+async function handleLogin(event) {
+  event.preventDefault();
+
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showToast('Заполните все поля', 'error');
+    return;
+  }
+
+  try {
+    showLoading('Вход в систему...');
+
+    const response = await AuthAPIClient.login(email, password);
+
+    if (response.success && response.token) {
+      saveAuthToken(response.token);
+      updateUserUI(response.user);
+      closeModal('login-modal');
+      showToast('Добро пожаловать!', 'success');
+    } else {
+      throw new Error('Неверный ответ сервера');
+    }
+
+    hideLoading();
+  } catch (error) {
+    hideLoading();
+    showToast(`Ошибка входа: ${error.message}`, 'error');
+  }
+}
+
+async function handleRegister(event) {
+  event.preventDefault();
+
+  const firstName = document.getElementById('register-first-name').value.trim();
+  const lastName = document.getElementById('register-last-name').value.trim();
+  const email = document.getElementById('register-email').value.trim();
+  const password = document.getElementById('register-password').value;
+
+  if (!firstName || !lastName || !email || !password) {
+    showToast('Заполните все поля', 'error');
+    return;
+  }
+
+  if (password.length < 6) {
+    showToast('Пароль должен содержать минимум 6 символов', 'error');
+    return;
+  }
+
+  try {
+    showLoading('Регистрация...');
+
+    const response = await AuthAPIClient.register(firstName, lastName, email, password);
+
+    if (response.success) {
+      showToast('Регистрация успешна! Теперь войдите', 'success');
+      switchToLoginForm();
+    }
+
+    hideLoading();
+  } catch (error) {
+    hideLoading();
+    showToast(`Ошибка регистрации: ${error.message}`, 'error');
+  }
+}
+
+async function handleChangePassword(event) {
+  event.preventDefault();
+
+  const currentPassword = document.getElementById('current-password').value;
+  const newPassword = document.getElementById('new-password').value;
+  const confirmPassword = document.getElementById('confirm-password').value;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    showToast('Заполните все поля', 'error');
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    showToast('Новый пароль должен содержать минимум 6 символов', 'error');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    showToast('Новые пароли не совпадают', 'error');
+    return;
+  }
+
+  try {
+    showLoading('Смена пароля...');
+
+    const response = await AuthAPIClient.changePassword(currentPassword, newPassword);
+
+    if (response.success) {
+      showToast('Пароль успешно изменён', 'success');
+      closeModal('change-password-modal');
+      document.getElementById('change-password-form').reset();
+    }
+
+    hideLoading();
+  } catch (error) {
+    hideLoading();
+    showToast(`Ошибка: ${error.message}`, 'error');
+  }
+}
+
+async function handleSignOut() {
+  try {
+    showLoading('Выход...');
+
+    await AuthAPIClient.logout();
+
+    clearAuthToken();
+    updateUserUI(null);
+    closeUserDropdown();
+
+    showToast('Вы вышли из системы', 'info');
+    hideLoading();
+
+    openModal('login-modal');
+  } catch (error) {
+    hideLoading();
+    showToast(`Ошибка: ${error.message}`, 'error');
+  }
+}
+
+function switchToRegisterForm() {
+  document.getElementById('login-form').classList.add('is-hidden');
+  document.getElementById('register-form').classList.remove('is-hidden');
+  document.getElementById('login-modal-title').textContent = 'Регистрация';
+}
+
+function switchToLoginForm() {
+  document.getElementById('register-form').classList.add('is-hidden');
+  document.getElementById('login-form').classList.remove('is-hidden');
+  document.getElementById('login-modal-title').textContent = 'Вход в систему';
+}
+
+function toggleUserDropdown() {
+  const dropdown = document.getElementById('user-dropdown');
+  dropdown.classList.toggle('is-hidden');
+}
+
+function closeUserDropdown() {
+  document.getElementById('user-dropdown').classList.add('is-hidden');
+}
+
+// ============================================
 // 15. EVENT BINDING
 // ============================================
 
@@ -1382,6 +1684,72 @@ function bindEvents() {
     if (e.key === 'Escape') {
       closeModal('settings-modal');
       closeModal('details-modal');
+      closeModal('login-modal');
+      closeModal('change-password-modal');
+    }
+  });
+
+  // Authentication event bindings
+  const userButton = document.getElementById('user-button');
+  if (userButton) {
+    userButton.addEventListener('click', toggleUserDropdown);
+  }
+
+  const btnChangePassword = document.getElementById('btn-change-password');
+  if (btnChangePassword) {
+    btnChangePassword.addEventListener('click', () => {
+      closeUserDropdown();
+      openModal('change-password-modal');
+    });
+  }
+
+  const btnSignOut = document.getElementById('btn-sign-out');
+  if (btnSignOut) {
+    btnSignOut.addEventListener('click', handleSignOut);
+  }
+
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', handleLogin);
+  }
+
+  const registerForm = document.getElementById('register-form');
+  if (registerForm) {
+    registerForm.addEventListener('submit', handleRegister);
+  }
+
+  const changePasswordForm = document.getElementById('change-password-form');
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', handleChangePassword);
+  }
+
+  const btnShowRegister = document.getElementById('btn-show-register');
+  if (btnShowRegister) {
+    btnShowRegister.addEventListener('click', switchToRegisterForm);
+  }
+
+  const btnShowLogin = document.getElementById('btn-show-login');
+  if (btnShowLogin) {
+    btnShowLogin.addEventListener('click', switchToLoginForm);
+  }
+
+  document.querySelectorAll('[data-close-login]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal('login-modal'));
+  });
+
+  document.querySelectorAll('[data-close-change-password]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeModal('change-password-modal');
+      document.getElementById('change-password-form').reset();
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    const userButton = document.getElementById('user-button');
+    const dropdown = document.getElementById('user-dropdown');
+
+    if (userButton && dropdown && !userButton.contains(e.target) && !dropdown.contains(e.target)) {
+      closeUserDropdown();
     }
   });
 }
@@ -1396,6 +1764,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const config = loadConfig();
   state.config = config;
   API = new CompanyFinderAPI(config.apiUrl);
+
+  // Initialize Auth API
+  AuthAPIClient = new AuthAPI(config.apiUrl);
+
+  // Check authentication status
+  if (config.apiUrl) {
+    await checkAuthStatus();
+  } else {
+    updateUserUI(null);
+  }
 
   const todayDate = document.getElementById('today-date');
   if (todayDate) {

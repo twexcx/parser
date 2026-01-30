@@ -150,12 +150,33 @@
       </nav>
 
       <div class="sidebar__user">
-        <div class="user">
-          <div class="user__avatar"><span>МВ</span></div>
+        <button type="button" class="user user--clickable" id="user-button">
+          <div class="user__avatar"><span id="user-initials">—</span></div>
           <div class="user__meta">
-            <p class="user__role">Менеджер</p>
-            <p class="user__dept">Продажи</p>
+            <p class="user__name" id="user-name">Гость</p>
+            <p class="user__email" id="user-email">Войдите в систему</p>
           </div>
+        </button>
+
+        <!-- User Dropdown Menu (hidden by default) -->
+        <div class="user-dropdown is-hidden" id="user-dropdown">
+          <div class="user-dropdown__item">
+            <strong id="dropdown-user-name">Гость</strong>
+            <span id="dropdown-user-email">—</span>
+          </div>
+          <div class="user-dropdown__divider"></div>
+          <button type="button" class="user-dropdown__item user-dropdown__button" id="btn-change-password">
+            <svg class="user-dropdown__icon" viewBox="0 0 24 24">
+              <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            Сменить пароль
+          </button>
+          <button type="button" class="user-dropdown__item user-dropdown__button user-dropdown__button--danger" id="btn-sign-out">
+            <svg class="user-dropdown__icon" viewBox="0 0 24 24">
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            Выйти
+          </button>
         </div>
       </div>
     </aside>
@@ -543,6 +564,107 @@
       </div>
       <div class="modal__body">
         <pre class="code" id="details-pre">{}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN MODAL -->
+  <div class="modal is-hidden" id="login-modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-login></div>
+    <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title" id="login-modal-title">Вход в систему</h3>
+        <button class="btn btn--ghost btn--tiny" type="button" data-close-login>Закрыть</button>
+      </div>
+
+      <div class="modal__body">
+        <!-- Login Form (shown by default) -->
+        <form id="login-form" class="auth-form">
+          <div class="stack stack--md">
+            <div class="field">
+              <label for="login-email">Email</label>
+              <input type="email" id="login-email" placeholder="ivan@example.com" required>
+            </div>
+
+            <div class="field">
+              <label for="login-password">Пароль</label>
+              <input type="password" id="login-password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn btn--primary">Войти</button>
+
+            <p class="auth-switch">
+              Нет аккаунта?
+              <button type="button" class="btn btn--link" id="btn-show-register">Зарегистрироваться</button>
+            </p>
+          </div>
+        </form>
+
+        <!-- Register Form (hidden by default) -->
+        <form id="register-form" class="auth-form is-hidden">
+          <div class="stack stack--md">
+            <div class="field">
+              <label for="register-first-name">Имя</label>
+              <input type="text" id="register-first-name" placeholder="Иван" required>
+            </div>
+
+            <div class="field">
+              <label for="register-last-name">Фамилия</label>
+              <input type="text" id="register-last-name" placeholder="Петров" required>
+            </div>
+
+            <div class="field">
+              <label for="register-email">Email</label>
+              <input type="email" id="register-email" placeholder="ivan@example.com" required>
+            </div>
+
+            <div class="field">
+              <label for="register-password">Пароль</label>
+              <input type="password" id="register-password" placeholder="Минимум 6 символов" required minlength="6">
+            </div>
+
+            <button type="submit" class="btn btn--primary">Зарегистрироваться</button>
+
+            <p class="auth-switch">
+              Уже есть аккаунт?
+              <button type="button" class="btn btn--link" id="btn-show-login">Войти</button>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHANGE PASSWORD MODAL -->
+  <div class="modal is-hidden" id="change-password-modal" aria-hidden="true">
+    <div class="modal__backdrop" data-close-change-password></div>
+    <div class="modal__panel modal__panel--narrow" role="dialog" aria-modal="true">
+      <div class="modal__header">
+        <h3 class="modal__title">Сменить пароль</h3>
+        <button class="btn btn--ghost btn--tiny" type="button" data-close-change-password>Закрыть</button>
+      </div>
+
+      <div class="modal__body">
+        <form id="change-password-form">
+          <div class="stack stack--md">
+            <div class="field">
+              <label for="current-password">Текущий пароль</label>
+              <input type="password" id="current-password" required>
+            </div>
+
+            <div class="field">
+              <label for="new-password">Новый пароль</label>
+              <input type="password" id="new-password" required minlength="6">
+            </div>
+
+            <div class="field">
+              <label for="confirm-password">Подтвердите новый пароль</label>
+              <input type="password" id="confirm-password" required minlength="6">
+            </div>
+
+            <button type="submit" class="btn btn--primary">Сменить пароль</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
