@@ -1405,7 +1405,6 @@ async function checkAuthStatus() {
 
   if (!token) {
     updateUserUI(null);
-    openModal('login-modal');
     return false;
   }
 
@@ -1417,7 +1416,6 @@ async function checkAuthStatus() {
     console.error('Auth check failed:', error);
     clearAuthToken();
     updateUserUI(null);
-    openModal('login-modal');
     return false;
   }
 }
@@ -1562,6 +1560,13 @@ function switchToLoginForm() {
 }
 
 function toggleUserDropdown() {
+  // If user is not logged in, show login modal instead
+  if (!state.currentUser) {
+    openModal('login-modal');
+    return;
+  }
+
+  // If logged in, toggle dropdown
   const dropdown = document.getElementById('user-dropdown');
   dropdown.classList.toggle('is-hidden');
 }
