@@ -152,7 +152,8 @@ function getFilteredCompanies() {
 function calculatePriority(revenueStr, config) {
   if (!revenueStr) return 'C';
 
-  const numStr = revenueStr.replace(/[^0-9]/g, '');
+  const raw = typeof revenueStr === 'number' ? revenueStr.toString() : String(revenueStr);
+  const numStr = raw.replace(/[^0-9]/g, '');
   if (!numStr) return 'C';
 
   const millions = parseFloat(numStr) / 1000000;
@@ -163,6 +164,7 @@ function calculatePriority(revenueStr, config) {
 }
 
 function processCompanyData(company, config) {
+  company = normalizeCompany(company);
   company.priority = calculatePriority(company.revenue, config);
 
   if (!company.region && company.legal_address) {
@@ -173,6 +175,90 @@ function processCompanyData(company, config) {
   }
 
   return company;
+}
+
+function normalizeCompany(company) {
+  if (!company || typeof company !== 'object') return company;
+  const normalized = { ...company };
+
+  if (!normalized.short_name && normalized['название_компании']) {
+    normalized.short_name = normalized['название_компании'];
+  }
+  if (!normalized.full_name && normalized.name) {
+    normalized.full_name = normalized.name;
+  }
+  if (!normalized.phones && normalized['телефон']) {
+    normalized.phones = [normalized['телефон']];
+  }
+  if (!normalized.emails && normalized['email']) {
+    normalized.emails = [normalized['email']];
+  }
+  if (!normalized.legal_address && normalized['адрес']) {
+    normalized.legal_address = normalized['адрес'];
+  }
+  if (!normalized.region && normalized['город']) {
+    normalized.region = normalized['город'];
+  }
+  if (!normalized.okved_main && normalized['оквэд']) {
+    normalized.okved_main = normalized['оквэд'];
+  }
+  if (!normalized.revenue && normalized['оборот']) {
+    normalized.revenue = normalized['оборот'];
+  }
+  if (!normalized.priority && normalized['приоритет']) {
+    normalized.priority = normalized['приоритет'];
+  }
+  if (!normalized.inn && normalized['инн']) {
+    normalized.inn = normalized['инн'];
+  }
+  if (!normalized.ogrn && normalized['огрн']) {
+    normalized.ogrn = normalized['огрн'];
+  }
+  if (!normalized.ring && normalized['кольцо']) {
+    normalized.ring = normalized['кольцо'];
+  }
+  if (!normalized.website && normalized['сайт']) {
+    normalized.website = normalized['сайт'];
+  }
+  if (!normalized.source && normalized['источник']) {
+    normalized.source = normalized['источник'];
+  }
+  if (!normalized.category && normalized['категория']) {
+    normalized.category = normalized['категория'];
+  }
+  if (!normalized.distance_km && normalized['расстояние_км']) {
+    normalized.distance_km = normalized['расстояние_км'];
+  }
+
+  return normalized;
+}
+
+function parseRevenueToInt(value) {
+  if (value == null) return null;
+  if (typeof value === 'number') return value;
+  const digits = String(value).replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : null;
+}
+
+function toBackendCompany(company) {
+  const normalized = normalizeCompany(company);
+  return {
+    название_компании: normalized.short_name || normalized.full_name || normalized.name || null,
+    телефон: normalized.phones?.[0] || normalized.phone || null,
+    email: normalized.emails?.[0] || normalized.email || null,
+    адрес: normalized.legal_address || normalized.address || null,
+    город: normalized.region || normalized.city || null,
+    расстояние_км: normalized.distance_km || normalized.distance || null,
+    кольцо: normalized.ring || null,
+    категория: normalized.category || null,
+    сайт: normalized.website || null,
+    источник: normalized.source || null,
+    инн: normalized.inn || null,
+    огрн: normalized.ogrn || null,
+    оборот: parseRevenueToInt(normalized.revenue),
+    приоритет: normalized.priority || null,
+    оквэд: normalized.okved_main || normalized.okved || null
+  };
 }
 
 // ============================================
@@ -222,21 +308,42 @@ class CompanyFinderAPI {
   }
 
   async search(query, enrichWithRusprofile = true, maxCompanies = 10) {
-    return await this.request('/search', {
+    const result = await this.request('/api/search', {
       method: 'POST',
       body: JSON.stringify({
         query,
-        enrich_with_rusprofile: enrichWithRusprofile,
-        max_companies: maxCompanies
+        max_results: maxCompanies
       })
     });
+
+    if (result && result.success && result.data) {
+      const companies = Array.isArray(result.data.companies) ? result.data.companies : [];
+      return {
+        ...result,
+        companies,
+        count: typeof result.data.total === 'number' ? result.data.total : companies.length
+      };
+    }
+
+    return result;
   }
 
   async enrich(innList) {
-    return await this.request('/enrich', {
+    const result = await this.request('/enrich', {
       method: 'POST',
       body: JSON.stringify(innList)
     });
+
+    if (result && result.success && result.data) {
+      const companies = Array.isArray(result.data.companies) ? result.data.companies : [];
+      return {
+        ...result,
+        companies,
+        count: typeof result.data.total === 'number' ? result.data.total : companies.length
+      };
+    }
+
+    return result;
   }
 
   async healthCheck() {
@@ -746,12 +853,14 @@ async function saveCompaniesToDatabase(companies) {
   }
 
   try {
-    const response = await fetch(`${config.apiUrl}/companies/save`, {
+    const response = await fetch(`${config.apiUrl}/api/companies/bulk`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(companies)
+      body: JSON.stringify({
+        companies: companies.map(toBackendCompany)
+      })
     });
 
     if (!response.ok) {
@@ -760,7 +869,7 @@ async function saveCompaniesToDatabase(companies) {
     }
 
     const result = await response.json();
-    console.log(`[DB] Saved ${result.saved} new, updated ${result.updated} companies`);
+    console.log(`[DB] Saved ${result.saved_count || 0} companies`);
 
   } catch (error) {
     console.error('[DB] Failed to save companies:', error);
@@ -779,7 +888,7 @@ async function loadCompaniesFromDatabase() {
   try {
     showLoading('Загрузка компаний из базы данных...');
 
-    const response = await fetch(`${config.apiUrl}/companies`, {
+    const response = await fetch(`${config.apiUrl}/api/companies`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -792,17 +901,19 @@ async function loadCompaniesFromDatabase() {
 
     const result = await response.json();
 
-    if (result.success && result.companies.length > 0) {
+    const companies = result?.companies || result?.data || [];
+    if (result.success && companies.length > 0) {
       // Process and add companies to state
-      const processedCompanies = result.companies.map(c => processCompanyData(c, config));
+      const processedCompanies = companies.map(c => processCompanyData(c, config));
       addCompanies(processedCompanies);
 
       renderCompaniesTable();
       updateDashboardStats();
       updateRingLabels(config);
 
-      console.log(`[DB] Loaded ${result.count} companies from database`);
-      showToast(`Загружено ${result.count} компаний из базы данных`, 'success');
+      const loadedCount = result.count ?? companies.length;
+      console.log(`[DB] Loaded ${loadedCount} companies from database`);
+      showToast(`Загружено ${loadedCount} компаний из базы данных`, 'success');
     }
 
     hideLoading();
